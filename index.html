@@ -2,582 +2,545 @@
 <html lang="uk" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Освітній навігатор UGS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Освітній навігатор UGS — 2025/2026</title>
+
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
+
   <style>
-    /* Основні стилі для сторінки */
-    body { 
-      font-family: 'Inter', sans-serif; 
-      background-color: #f8fafc; /* Світло-сірий фон */
-    }
-    /* Стилі для активної вкладки в навігації */
-    .tab-active { 
-      background-color: #ffffff; 
-      color: #2563eb; 
-      font-weight: 600; 
-      box-shadow: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1); 
-    }
-    /* Стилі для неактивної вкладки */
-    .tab-inactive { 
-      color: #475569; 
-    }
-    /* Стилі для акордеону: вміст прихований за замовчуванням */
-    .accordion-content { 
-      max-height: 0; 
-      overflow: hidden; 
-      transition: max-height 0.5s ease-out; /* Плавна анімація розгортання */
-    }
-    /* Стилі для іконки в заголовку акордеону */
-    .accordion-header .icon { 
-      transition: transform 0.3s ease; 
-    }
-    /* Коли акордеон активний, розгортаємо вміст */
-    .accordion-header.active + .accordion-content { 
-      max-height: 5000px; /* Велика висота для вмісту будь-якого розміру */
-    }
-    /* Поворот іконки при активному акордеоні */
-    .accordion-header.active .icon { 
-      transform: rotate(180deg); 
-    }
-    /* Стиль для підсвічування тексту при пошуку */
-    .search-highlight { 
-      background-color: #fef9c3; /* Жовтий фон */
-      border-radius: 3px;
-      padding: 1px 2px;
-    }
+    body{font-family:'Inter',sans-serif;background:#f8fafc}
+    .tab-active{background:#fff;color:#2563eb;font-weight:600;box-shadow:0 4px 6px -1px rgb(0 0 0 / .1),0 2px 4px -2px rgb(0 0 0 / .1)}
+    .tab-inactive{color:#475569}
+    .accordion-content{max-height:0;overflow:hidden;transition:max-height .45s ease}
+    .accordion-header .icon{transition:transform .3s ease}
+    .accordion-header.active + .accordion-content{max-height:6000px}
+    .accordion-header.active .icon{transform:rotate(180deg)}
+    .search-highlight{background:#fef9c3;border-radius:3px;padding:0 .15rem}
+    .kbd{background:#e2e8f0;border:1px solid #cbd5e1;border-bottom-width:3px;padding:.1rem .35rem;border-radius:.375rem;font-weight:600}
+    .ext::after{content:"↗";margin-left:.25rem;font-size:.85em;color:#64748b}
+    .sr-badge{font-size:.75rem;background:#e2e8f0;color:#334155;border-radius:9999px;padding:.15rem .5rem}
   </style>
 </head>
 <body class="antialiased text-slate-800">
   <div class="min-h-screen flex flex-col">
-    <!-- Шапка сайту -->
-    <header class="bg-white shadow-md sticky top-0 z-20">
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-30">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-3">
-            <a href="https://globalschool.in.ua/" target="_blank" class="flex items-center gap-3">
-              <div class="bg-blue-600 p-2 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-              </div>
-              <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Освітній навігатор <span class="text-blue-600">UGS</span></h1>
-            </a>
+          <a href="https://globalschool.in.ua/" target="_blank" class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            </div>
+            <div>
+              <h1 class="text-xl sm:text-2xl font-bold">Освітній навігатор <span class="text-blue-600">UGS</span></h1>
+              <p class="text-xs text-slate-500 -mt-1">Відповідно до інструктивно-методичних рекомендацій МОН, 2025/2026 н.р.</p>
+            </div>
+          </a>
+          <div class="hidden sm:flex items-center gap-4 text-sm text-slate-500">
+            <span class="sr-badge">Статичний сайт</span>
+            <span class="sr-badge">Локальний пошук</span>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Основний контент -->
+    <!-- Main -->
     <main class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="flex flex-col lg:flex-row gap-8">
-        <!-- Бічна панель навігації -->
+        <!-- Sidebar -->
         <aside class="lg:w-1/4 xl:w-1/5">
           <div class="sticky top-24">
             <h2 class="text-lg font-semibold text-slate-700 mb-4">Навігація</h2>
-            <div class="relative mb-4">
-                <input id="global-search" type="search" placeholder="Швидкий пошук…" class="w-full rounded-xl border border-slate-200 bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 px-4 py-3 pr-10 outline-none" />
+
+            <!-- Search 
+            <div class="mb-3">
+              <div class="relative">
+                <input id="global-search" type="search" placeholder="Швидкий пошук… (натисніть Enter)" class="w-full rounded-xl border border-slate-200 bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 px-4 py-3 pr-10 outline-none"/>
                 <i data-lucide="search" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            </div>
+              </div>
+              <div class="flex items-center justify-between mt-2 text-xs text-slate-500">
+                <div class="flex gap-2 items-center">
+                  <span>Навігація по результатах:</span>
+                  <span class="kbd">F</span><span>— наступний</span>
+                  <span class="kbd">Shift+F</span><span>— попередній</span>
+                </div>
+                <span id="search-status" class="hidden sr-badge">0 / 0</span>
+              </div>
+            </div> -->
+
+            <!-- Tabs -->
             <nav id="main-tabs" class="flex flex-col space-y-2">
               <button data-tab="ugs" class="tab-active flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="home"></i><span>Інфо UGS</span></button>
               <button data-tab="general" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="globe"></i><span>Загальні рекомендації</span></button>
               <button data-tab="primary" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="book-open"></i><span>Початкова школа</span></button>
               <button data-tab="basic" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="graduation-cap"></i><span>Базова школа</span></button>
-              <button data-tab="courses" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="award"></i><span>Підвищення кваліфікації</span></button>
               <button data-tab="media" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="newspaper"></i><span>Медіаграмотність</span></button>
               <button data-tab="ai" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="cpu"></i><span>ШІ в освіті</span></button>
               <button data-tab="sel" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="heart-handshake"></i><span>СЕН та підтримка</span></button>
+              <button data-tab="patriot" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="flag"></i><span>Патріотичне виховання</span></button>
+              <button data-tab="legal" class="tab-inactive flex items-center gap-3 text-left p-3 rounded-lg"><i data-lucide="file-check-2"></i><span>Нормативна база</span></button>
             </nav>
           </div>
         </aside>
 
-        <!-- Область контенту -->
+        <!-- Content -->
         <section class="flex-1 space-y-8" id="content-area">
-          <!-- Розділ: Інфо UGS -->
+
+          <!-- UGS -->
           <div id="ugs" class="tab-pane space-y-6">
-            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable-content">Для вчителів UGS</h2>
-            <p class="text-slate-600 searchable-content">Цей розділ містить ключову організаційну інформацію для щоденної роботи вчителів Ukrainian Global School.</p>
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Для вчителів UGS</h2>
+            <p class="text-slate-600 searchable">Ключова організаційна інформація для щоденної роботи у Ukrainian Global School.</p>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <!-- Bells -->
               <div class="bg-white p-6 rounded-xl shadow">
                 <div class="flex items-center gap-3 mb-4">
                   <div class="bg-blue-100 p-3 rounded-full"><i data-lucide="bell" class="text-blue-600"></i></div>
-                  <h3 class="text-lg font-semibold searchable-content">Розклад дзвінків</h3>
+                  <h3 class="text-lg font-semibold searchable">Розклад дзвінків</h3>
                 </div>
-                <ul class="space-y-2 text-slate-600 searchable-content">
-                    <li><b>1 урок:</b> 8:30 - 9:15</li>
-                    <li><b>2 урок:</b> 9:25 - 10:10</li>
-                    <li><b>3 урок:</b> 10:30 - 11:15</li>
-                    <li><b>4 урок:</b> 11:35 - 12:20</li>
-                    <li><b>5 урок:</b> 12:40 - 13:25</li>
-                    <li><b>6 урок:</b> 13:35 - 14:20</li>
+                <ul class="space-y-1 text-slate-600 searchable">
+                  <li><b>1 урок:</b> 8:30 – 9:15</li>
+                  <li><b>2 урок:</b> 9:25 – 10:10</li>
+                  <li><b>3 урок:</b> 10:30 – 11:15</li>
+                  <li><b>4 урок:</b> 11:35 – 12:20</li>
+                  <li><b>5 урок:</b> 12:40 – 13:25</li>
+                  <li><b>6 урок:</b> 13:35 – 14:20</li>
                 </ul>
+                <p class="mt-3 text-xs text-slate-500">Тривалість уроків у початковій школі див. нижче (35/40 хв).</p>
               </div>
+
+              <!-- Handbook -->
               <div class="bg-white p-6 rounded-xl shadow">
                 <div class="flex items-center gap-3 mb-4">
                   <div class="bg-green-100 p-3 rounded-full"><i data-lucide="book-marked" class="text-green-600"></i></div>
-                  <h3 class="text-lg font-semibold searchable-content">Хендбук вчителя</h3>
+                  <h3 class="text-lg font-semibold searchable">Хендбук вчителя</h3>
                 </div>
-                <p class="text-slate-600 mb-3 searchable-content">Ваш головний довідник. Тут зібрані всі правила, процедури та рекомендації для ефективної роботи в UGS.</p>
-                <a href="https://globalschool.in.ua/" target="_blank" class="inline-flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-800"><span>Відкрити сайт школи</span><i data-lucide="arrow-right" class="w-4 h-4"></i></a>
+                <p class="text-slate-600 mb-3 searchable">Правила, процедури, шаблони документів.</p>
+                <a class="inline-flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-800 ext" href="https://globalschool.in.ua/" target="_blank">Сайт школи</a>
               </div>
+
+              <!-- Calendar -->
               <div class="bg-white p-6 rounded-xl shadow">
                 <div class="flex items-center gap-3 mb-4">
                   <div class="bg-purple-100 p-3 rounded-full"><i data-lucide="calendar-days" class="text-purple-600"></i></div>
-                  <h3 class="text-lg font-semibold searchable-content">План заходів на місяць</h3>
+                  <h3 class="text-lg font-semibold searchable">План подій на місяць</h3>
                 </div>
-                <p class="text-slate-600 mb-3 searchable-content">Будьте в курсі всіх шкільних подій: педагогічні ради, свята, конкурси та інші заходи.</p>
-                <p class="text-slate-500 italic searchable-content">Посилання на документ буде додано незабаром.</p>
+                <p class="text-slate-600 mb-3 searchable">Педради, свята, конкурси, внутрішні зустрічі.</p>
+                <p class="text-slate-500 italic">Посилання буде додано після затвердження графіка.</p>
               </div>
-              <div class="bg-white p-6 rounded-xl shadow">
-                <div class="flex items-center gap-3 mb-4">
-                  <div class="bg-rose-100 p-3 rounded-full"><i data-lucide="cake" class="text-rose-600"></i></div>
-                  <h3 class="text-lg font-semibold text-slate-700 searchable-content">Іменинники місяця</h3>
-                </div>
-                <p class="text-slate-600 mb-4 searchable-content">Не забудьте привітати колег! Давайте створювати теплу атмосферу разом.</p>
-                <p class="text-slate-500 italic searchable-content">Список іменинників оновлюється щомісяця.</p>
-            </div>
             </div>
           </div>
 
-          <!-- Розділ: Загальні рекомендації -->
+          <!-- Загальні -->
           <div id="general" class="tab-pane hidden space-y-4">
-            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable-content">Загальні рекомендації МОН</h2>
-            <p class="text-slate-600 searchable-content">Ключові напрямки роботи сучасного закладу освіти: від кібербезпеки до організації змішаного навчання. Ці рекомендації допоможуть створити безпечне та ефективне освітнє середовище.</p>
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Загальні рекомендації МОН</h2>
+            <p class="text-slate-600 searchable">Ключові напрямки: безпечна мережа, доброчесність, дистанційне/змішане навчання.</p>
+
             <div class="accordion space-y-3">
+              <!-- Cyber & Integrity -->
               <div class="bg-white rounded-lg shadow">
                 <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
-                  <span class="flex items-center gap-2 searchable-content"><i data-lucide="shield-check" class="text-green-600"></i>Безпека та доброчесність</span>
+                  <span class="flex items-center gap-2 searchable"><i data-lucide="shield-check" class="text-green-600"></i>Безпечна онлайн-поведінка та доброчесність</span>
                   <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
                 </button>
                 <div class="accordion-content">
-                  <div class="p-4 pt-2 text-slate-700 space-y-3">
-                    <p class="searchable-content">Формування культури безпечної поведінки в інтернеті, захист персональних даних та дотримання принципів академічної доброчесності є пріоритетами сучасної школи.</p>
-                    <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                        <div>
-                            <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://surl.li/xbsqf">Кібер Брама: кібербезпека в освіті</a>
-                            <p class="text-sm text-slate-500 searchable-content">Національний проєкт, що допомагає дізнатись, як безпечно користуватись мережею та протидіяти злочинним діям в інтернеті.</p>
-                        </div>
-                        <div>
-                            <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://study.nazk.gov.ua/">Study.NAZK — доброчесність</a>
-                            <p class="text-sm text-slate-500 searchable-content">Платформа НАЗК про права та обов'язки педагогів і учнівства, а також прозорість та доброчесність у закладах освіти.</p>
-                        </div>
-                    </div>
+                  <div class="p-4 pt-2 text-slate-700 space-y-4">
+                    <p class="searchable">Формуємо політику онлайн-безпеки школи, захист персональних даних, правила етикету й алгоритми дій у разі онлайн-ризиків.</p>
+                    <ul class="list-disc list-inside space-y-1">
+                      <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://stopfraud.gov.ua/cybersecurity-in-education">Нац. проєкт «Кібер Брама»</a> — курси, матеріали, ігри для 1–11 кл.</li>
+                      <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://study.nazk.gov.ua/">Study.NAZK</a> — права/обов’язки, прозорість і доброчесність у ЗЗСО.</li>
+                      <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://mon.gov.ua/npa/shodo-organizaciyi-distancijnogo-navchannya">Листи МОН щодо дистанційного навчання</a> — організація, безпека, взаємодія.</li>
+                    </ul>
                   </div>
                 </div>
               </div>
+
+              <!-- Distance & Blended -->
               <div class="bg-white rounded-lg shadow">
                 <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
-                  <span class="flex items-center gap-2 searchable-content"><i data-lucide="wifi" class="text-amber-600"></i>Дистанційне та змішане навчання</span>
+                  <span class="flex items-center gap-2 searchable"><i data-lucide="wifi" class="text-amber-600"></i>Дистанційне та змішане навчання</span>
                   <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
                 </button>
                 <div class="accordion-content">
                   <div class="p-4 pt-2 text-slate-700 space-y-3">
-                    <p class="searchable-content">В умовах дистанційного навчання посилюється значущість безпеки в мережі. Важливо повторювати правила безпечної роботи за комп'ютером і виконувати вправи для зняття втоми.</p>
-                     <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                        <div>
-                            <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://surl.li/vsorbt">Методичні рекомендації щодо організації дистанційного навчання</a>
-                            <p class="text-sm text-slate-500 searchable-content">Офіційний документ МОН з порадами щодо організації навчального процесу в дистанційному форматі.</p>
-                        </div>
-                    </div>
+                    <p class="searchable">Повторюємо правила ергономіки та безпеки, застосовуємо контент-фільтри, інструктуємо батьків та учнів щодо дій при онлайн-небезпеках.</p>
+                    <ul class="list-disc list-inside space-y-1">
+                      <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://surl.li/ndwhrw">НУШ: дистанційне/змішане у початковій школі (посібник)</a></li>
+                      <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://surli.cc/vsorbt">Методичні рекомендації щодо дистанційного навчання</a></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <!-- De-occupied territories -->
+              <div class="bg-white rounded-lg shadow">
+                <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
+                  <span class="flex items-center gap-2 searchable"><i data-lucide="radar" class="text-rose-600"></i>Робота на деокупованих/ТОТ</span>
+                  <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="p-4 pt-2 text-slate-700 space-y-2">
+                    <p class="searchable">Організаційні принципи, мережеві налаштування, онлайн-безпека для учнів/батьків і педагогів, що працюють дистанційно.</p>
+                    <a class="text-blue-600 hover:underline ext" target="_blank" href="https://uied.org.ua/wp-content/uploads/2025/04/metodychni-rekomendacziyi.pdf">Методичні рекомендації для ЗЗСО на деокупованих територіях</a>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Розділ: Початкова школа -->
+          <!-- Початкова школа -->
           <div id="primary" class="tab-pane hidden space-y-4">
-             <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable-content">Початкова школа</h2>
-             <p class="text-slate-600 searchable-content">Особливості організації освітнього процесу в 1-4 класах: від тривалості уроків до сучасних інструментів для подолання освітніх втрат та оцінювання за стандартами НУШ.</p>
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Початкова школа (1–4)</h2>
+            <p class="text-slate-600 searchable">Реалізація Держстандарту, НУШ, безпека, діагностика, подолання освітніх втрат.</p>
+
             <div class="accordion space-y-3">
+              <!-- Організація -->
               <div class="bg-white rounded-lg shadow">
                 <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
-                  <span class="flex items-center gap-2 searchable-content"><i data-lucide="book" class="text-amber-600"></i>Організація освітнього процесу</span>
+                  <span class="flex items-center gap-2 searchable"><i data-lucide="book" class="text-amber-600"></i>Організація освітнього процесу</span>
                   <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
                 </button>
                 <div class="accordion-content">
                   <div class="p-4 pt-2 text-slate-700 space-y-3">
-                    <ul class="list-disc list-inside space-y-1 searchable-content">
-                      <li><b>Тривалість уроків:</b> 35 хв (1 класи), 40 хв (2–4 класи).</li>
-                      <li><b>Домашні завдання:</b> 1–2 класи — не рекомендуються, 3–4 класи — до 1 години.</li>
-                      <li>Використання лише грифованої літератури. Е-додаток до підручника — обов’язковий з 2025 року.</li>
-                      <li>Зошити з друкованою основою є необов'язковими.</li>
+                    <ul class="list-disc list-inside space-y-1">
+                      <li class="searchable"><b>Тривалість уроків:</b> 35 хв (1 кл), 40 хв (2–4 кл).</li>
+                      <li class="searchable"><b>Домашні завдання:</b> 1–2 кл — не рекомендуються; у 2 кл можливі індивідуальні за вибором до 45 хв/добу; 3–5 кл — до 1 год.</li>
+                      <li class="searchable">Використовуємо лише <a class="text-blue-600 hover:underline ext" target="_blank" href="https://imzo.gov.ua/pidruchniki/pereliki/">грифовану літературу</a>. З 2025 р. у нових підручниках обов’язковий <b>Е-додаток</b>.</li>
+                      <li class="searchable">Зошити з друкованою основою — необов’язково; лише за добровільної згоди всіх батьків/осіб, що їх замінюють.</li>
                     </ul>
-                    <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                        <div>
-                            <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://imzo.gov.ua/pidruchniki/pereliki/">Переліки грифованої літератури</a>
-                            <p class="text-sm text-slate-500 searchable-content">Офіційний ресурс ІМЗО з актуальними переліками навчальної літератури, рекомендованої МОН.</p>
-                        </div>
+                    <p class="text-slate-500 text-sm">Посилання на каталоги: <a class="text-blue-600 hover:underline ext" target="_blank" href="https://surl.lt/jdtxwh">Перелік ІМЗО</a>, <a class="text-blue-600 hover:underline ext" target="_blank" href="https://surl.li/bqsrea">Каталог ІМЗО</a>, <a class="text-blue-600 hover:underline ext" target="_blank" href="https://surl.li/xxvcuy">Каталог УІРО</a>.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Діагностика -->
+              <div class="bg-white rounded-lg shadow">
+                <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
+                  <span class="flex items-center gap-2 searchable"><i data-lucide="stethoscope" class="text-teal-600"></i>Діагностика та оцінювання</span>
+                  <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
+                </button>
+                <div class="accordion-content">
+                  <div class="p-4 pt-2 text-slate-700 space-y-3">
+                    <ul class="list-disc list-inside space-y-1">
+                      <li class="searchable">Діагностуємо не лише результати, а й мотивацію, психологічний клімат, емоційний стан.</li>
+                      <li class="searchable">У початковій школі результат фіксується у вигляді <b>оцінювального судження</b>, а не балів (автономія школи/вчителя).</li>
+                      <li class="searchable">Ранкові зустрічі 10–15 хв з темами особистої/цивільної/мінної/пожежної безпеки.</li>
+                    </ul>
+                    <div class="space-y-1">
+                      <a class="text-blue-600 hover:underline ext" target="_blank" href="https://sqe.gov.ua/diyalnist/monitoringovi-doslidzhennya/opituvannya-doslidzhennya-vivchennya-za-2024/">Державна служба якості освіти — звіти</a><br>
+                      <a class="text-blue-600 hover:underline ext" target="_blank" href="https://surl.lu/sgczsz">Організація діагностичної/корекційної роботи (мол. школярі)</a>
                     </div>
                   </div>
                 </div>
               </div>
+
+              <!-- Подолання втрат -->
               <div class="bg-white rounded-lg shadow">
                 <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
-                  <span class="flex items-center gap-2 searchable-content"><i data-lucide="rocket" class="text-teal-600"></i>Подолання освітніх втрат</span>
+                  <span class="flex items-center gap-2 searchable"><i data-lucide="rocket" class="text-indigo-600"></i>Подолання освітніх втрат</span>
                   <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
                 </button>
                 <div class="accordion-content">
                   <div class="p-4 pt-2 text-slate-700 space-y-3">
-                    <p class="searchable-content">Сучасні цифрові інструменти, які допоможуть учням надолужити пропущене та поглибити знання в ігровій та інтерактивній формі.</p>
-                    <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                      <div>
-                          <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://primary.study.ua/">Мобільний застосунок "Вивчаю — не чекаю"</a>
-                          <p class="text-sm text-slate-500 searchable-content">Гейміфікована програма з української мови та математики для учнів 1-4 класів.</p>
-                      </div>
-                      <div>
-                          <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://elpom.com.ua/">Електронний помічник вчителя</a>
-                          <p class="text-sm text-slate-500 searchable-content">Бібліотека навчально-методичних посібників для педагогів, зокрема для роботи з дітьми з ООП.</p>
-                      </div>
-                       <div>
-                          <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://wordwall.net/">Wordwall</a>
-                          <p class="text-sm text-slate-500 searchable-content">Платформа для створення інтерактивних вправ та ігор.</p>
-                      </div>
-                    </div>
+                    <ul class="list-disc list-inside space-y-1">
+                      <li class="searchable"><a class="text-blue-600 hover:underline ext" href="https://lms.e-school.net.ua/primary" target="_blank">«Вивчаю — не чекаю»</a> — відео, вправи, ігри (1–4 кл).</li>
+                      <li class="searchable"><a class="text-blue-600 hover:underline ext" href="https://elpom.com.ua/" target="_blank">Електронний помічник вчителя</a> — посібники, у т.ч. для ООП.</li>
+                      <li class="searchable"><a class="text-blue-600 hover:underline ext" href="https://wordwall.net/uk" target="_blank">Wordwall</a>, <a class="text-blue-600 hover:underline ext" href="https://www.educaplay.com/" target="_blank">Educaplay</a>, <a class="text-blue-600 hover:underline ext" href="https://www.matific.com/ua/uk/home/matific-for-ukraine/" target="_blank">Matific</a>.</li>
+                    </ul>
                   </div>
                 </div>
               </div>
+
+              <!-- Комунікація & критичне мислення -->
               <div class="bg-white rounded-lg shadow">
                 <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
-                  <span class="flex items-center gap-2 searchable-content"><i data-lucide="clipboard-check" class="text-cyan-600"></i>Оцінювання та взаємодія</span>
+                  <span class="flex items-center gap-2 searchable"><i data-lucide="messages-square" class="text-cyan-600"></i>Комунікація і критичне мислення</span>
                   <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
                 </button>
                 <div class="accordion-content">
-                  <div class="p-4 pt-2 text-slate-700 space-y-3">
-                     <p class="searchable-content">Оцінювання у початковій школі має рекомендаційний характер і спрямоване на підтримку та розвиток дитини, а не на відбір. Важливим елементом є партнерська взаємодія з батьками.</p>
-                    <ul class="list-disc list-inside space-y-1 searchable-content">
-                      <li>Оцінювання має рекомендаційний характер, заклад може розробити власну систему.</li>
-                      <li>Результат фіксується у формі оцінювального судження, а не балів.</li>
-                      <li>Ранкові зустрічі (10-15 хв) сприяють створенню позитивної атмосфери.</li>
-                    </ul>
+                  <div class="p-4 pt-2 text-slate-700 space-y-2">
+                    <p class="searchable">Розвиваємо висловлювання, аргументацію, роботу з джерелами, групову взаємодію (Щоденні 5, дискусії, рольові ігри).</p>
+                    <a class="text-blue-600 hover:underline ext" target="_blank" href="https://surl.li/spbleq">Методичні підходи до формування критичного мислення (початкова)</a>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Розділ: Базова школа -->
+          <!-- Базова школа -->
           <div id="basic" class="tab-pane hidden space-y-4">
-            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable-content">Базова школа</h2>
-            <p class="text-slate-600 searchable-content">Навчання у 5-8 класах ґрунтується на компетентнісному, діяльнісному та аксіологічному підходах. Учитель має академічну автономію у виборі форм, методів та засобів навчання. Тут зібрані корисні ресурси та рекомендації для цього етапу.</p>
-            <div class="accordion space-y-3">
-                <div class="bg-white rounded-lg shadow">
-                    <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
-                      <span class="flex items-center gap-2 searchable-content"><i data-lucide="lightbulb" class="text-indigo-600"></i>Ключові підходи та ресурси</span>
-                      <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
-                    </button>
-                    <div class="accordion-content">
-                        <div class="p-4 pt-2 text-slate-700 space-y-3">
-                            <p class="searchable-content">Цифрові платформи, що допоможуть урізноманітнити навчання та зробити його більш інтерактивним.</p>
-                            <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                                <div>
-                                    <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://lms.e-school.net.ua/">Всеукраїнська школа онлайн (ВШО)</a>
-                                    <p class="text-sm text-slate-500 searchable-content">Національна освітня платформа з відеоуроками, тестами та курсами для 5-11 класів.</p>
-                                </div>
-                                <div>
-                                    <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://uk.pi-stacja.org/">Навчальна платформа Pi-stacja</a>
-                                    <p class="text-sm text-slate-500 searchable-content">Безкоштовні відеоуроки та завдання з математики, біології, хімії та інших предметів для 5-9 класів.</p>
-                                </div>
-                                <div>
-                                    <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://arbook.info/">Мобільний застосунок Ar Book</a>
-                                    <p class="text-sm text-slate-500 searchable-content">Навчальні експерименти у форматах VR та AR, 3D моделі для інтерактивного вивчення різних предметів.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Сюди перенесено розділ "Захист України" -->
-                <div class="bg-white rounded-lg shadow">
-                    <button class="accordion-header w-full flex justify-between items-center p-4 text-left font-semibold text-slate-700">
-                      <span class="flex items-center gap-2 searchable-content"><i data-lucide="shield" class="text-red-600"></i>Захист України та безпека</span>
-                      <i data-lucide="chevron-down" class="icon w-5 h-5"></i>
-                    </button>
-                    <div class="accordion-content">
-                        <div class="p-4 pt-2 text-slate-700 space-y-3">
-                            <p class="searchable-content">Оновлені підходи до викладання предмета "Захист України" з акцентом на практичні навички, а також ресурси з мінної безпеки та першої допомоги.</p>
-                            <ul class="list-disc list-inside space-y-1 searchable-content">
-                               <li>Мета: формування оборонної свідомості та первинних загальновійськових знань.</li>
-                               <li>Не допускається дискримінація за ознакою статі, групи мають бути змішаними.</li>
-                               <li>Акцент на практичному складникові (до 80%).</li>
-                               <li>Відсутні вимоги до форми одягу, головне — зручність та безпека.</li>
-                            </ul>
-                            <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                                 <div>
-                                     <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://eoreplatform.web.app/dashboard">EORE — Навчання з попередження ризиків від ВНП</a>
-                                     <p class="text-sm text-slate-500 searchable-content">Онлайн-курс про ризики від вибухонебезпечних предметів.</p>
-                                 </div>
-                                 <div>
-                                     <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://safe.ed-era.com/">#ВБЕЗПЕЦІ</a>
-                                     <p class="text-sm text-slate-500 searchable-content">Освітній проєкт з практичними порадами щодо безпечної поведінки.</p>
-                                 </div>
-                                 <div>
-                                     <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://bezpeka.info/">Все про мінну безпеку</a>
-                                     <p class="text-sm text-slate-500 searchable-content">Інформаційний ресурс з правилами поведінки на територіях, що можуть бути заміновані.</p>
-                                 </div>
-                                 <div>
-                                     <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://tccc.org.ua/">TCCC — Тактична медицина</a>
-                                     <p class="text-sm text-slate-500 searchable-content">Ресурси та протоколи з надання домедичної допомоги в бойових умовах.</p>
-                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Базова школа (5–9)</h2>
+            <p class="text-slate-600 searchable">Компетентнісний, діяльнісний та аксіологічний підходи; наступність із початковою; безпека, медіаграмотність, СЕН.</p>
+            <div class="bg-white rounded-lg shadow">
+              <div class="p-4 pt-2 text-slate-700 space-y-2">
+                <p class="searchable">Для 9–11 класів у 2025/2026 чинними залишаються рекомендації МОН для 2024/2025 (лист від 30.08.2024 № 1.1/15776-24).</p>
+                <a class="text-blue-600 hover:underline ext" target="_blank" href="https://mon.gov.ua/static-objects/mon/uploads/public/66d/ffe/c4c/66dffec4c92d2958213439.pdf">Рекомендації 2024/2025 (посилання МОН)</a>
+              </div>
             </div>
           </div>
 
-          <!-- Розділ: Курси та ПК -->
-          <div id="courses" class="tab-pane hidden space-y-4">
-            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable-content">Підвищення кваліфікації</h2>
-            <p class="text-slate-600 searchable-content">Добірка актуальних онлайн-курсів для професійного розвитку вчителів. Кожен курс — це можливість отримати нові знання, практичні навички та сертифікат про підвищення кваліфікації.</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <a class="block bg-white rounded-xl shadow p-5 hover:shadow-lg hover:ring-2 hover:ring-blue-500 transition searchable-content" target="_blank" href="https://study.ed-era.com/uk/courses/course/6177">
-                <div class="flex items-start gap-4">
-                  <div class="bg-sky-100 p-3 rounded-lg"><i data-lucide="shield-check" class="text-sky-600"></i></div>
-                  <div>
-                    <h3 class="font-semibold text-slate-800">Very Verified 2.0 (EdEra)</h3>
-                    <p class="text-sm text-slate-600 mt-1">Курс з інфомедійної грамотності для зміцнення інформаційної стійкості. Сертифікат 15 год (0,5 ЄКТС).</p>
-                  </div>
-                </div>
-              </a>
-              <a class="block bg-white rounded-xl shadow p-5 hover:shadow-lg hover:ring-2 hover:ring-blue-500 transition searchable-content" target="_blank" href="https://eduhub.in.ua/courses/vivchay-ta-rozriznyay-infomediyna-gramotnist-v-osviti">
-                <div class="flex items-start gap-4">
-                  <div class="bg-emerald-100 p-3 rounded-lg"><i data-lucide="check-circle-2" class="text-emerald-600"></i></div>
-                  <div>
-                    <h3 class="font-semibold text-slate-800">Вивчай та розрізняй (IREX)</h3>
-                    <p class="text-sm text-slate-600 mt-1">Як інтегрувати медіаграмотність у свій предмет та опанувати інструменти фасилітації. Сертифікат на 30 годин (1 ЄКТС).</p>
-                  </div>
-                </div>
-              </a>
-              <a class="block bg-white rounded-xl shadow p-5 hover:shadow-lg hover:ring-2 hover:ring-blue-500 transition searchable-content" target="_blank" href="https://naurok.com.ua/learn/shtuchniy-intelekt---personalniy-pomichnik-vchitelya-62">
-                <div class="flex items-start gap-4">
-                  <div class="bg-indigo-100 p-3 rounded-lg"><i data-lucide="cpu" class="text-indigo-600"></i></div>
-                  <div>
-                    <h3 class="font-semibold text-slate-800">ШІ — персональний помічник (НаУрок)</h3>
-                    <p class="text-sm text-slate-600 mt-1">Практичні інструменти ШІ для створення завдань, автоматизації рутини та розвитку критичного мислення учнів.</p>
-                  </div>
-                </div>
-              </a>
-              <a class="block bg-white rounded-xl shadow p-5 hover:shadow-lg hover:ring-2 hover:ring-blue-500 transition searchable-content" target="_blank" href="https://osvita.diia.gov.ua/courses/artificial-intelligence">
-                <div class="flex items-start gap-4">
-                  <div class="bg-slate-100 p-3 rounded-lg"><i data-lucide="bot" class="text-slate-600"></i></div>
-                  <div>
-                    <h3 class="font-semibold text-slate-800">Що таке ШІ (Дія.Освіта)</h3>
-                    <p class="text-sm text-slate-600 mt-1">Короткий освітній серіал про основи штучного інтелекту, його ризики та корисне застосування. Сертифікат 0.1 ЕКТС.</p>
-                  </div>
-                </div>
-              </a>
-              <a class="block bg-white rounded-xl shadow p-5 hover:shadow-lg hover:ring-2 hover:ring-blue-500 transition searchable-content" target="_blank" href="https://prometheus.org.ua/prometheus-free/emotional-needs-and-social-interaction/">
-                <div class="flex items-start gap-4">
-                  <div class="bg-rose-100 p-3 rounded-lg"><i data-lucide="heart" class="text-rose-600"></i></div>
-                  <div>
-                    <h3 class="font-semibold text-slate-800">Небайдужі: емоційні потреби (Prometheus)</h3>
-                    <p class="text-sm text-slate-600 mt-1">15‑годинний безкоштовний курс, сфокусований на емоційному благополуччі та підтримці дітей у складних умовах.</p>
-                  </div>
-                </div>
-              </a>
-               <a class="block bg-white rounded-xl shadow p-5 hover:shadow-lg hover:ring-2 hover:ring-blue-500 transition searchable-content" target="_blank" href="https://talan.bank.gov.ua">
-                <div class="flex items-start gap-4">
-                  <div class="bg-amber-100 p-3 rounded-lg"><i data-lucide="banknote" class="text-amber-600"></i></div>
-                  <div>
-                    <h3 class="font-semibold text-slate-800">Талан: фінансова грамотність (НБУ)</h3>
-                    <p class="text-sm text-slate-600 mt-1">Платформа від Нацбанку з курсами (20-30 год) та готовими матеріалами для викладання фінансової грамотності.</p>
-                  </div>
-                </div>
-              </a>
-            </div>
-          </div>
-
-          <!-- Розділ: Медіаграмотність -->
+          <!-- Медіаграмотність -->
           <div id="media" class="tab-pane hidden space-y-4">
-            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable-content">Медіаграмотність</h2>
-            <div class="bg-white p-6 rounded-xl shadow space-y-4 text-slate-700">
-              <p class="searchable-content">В сучасному світі замало просто вміти розпізнавати фейки — важливо розуміти контексти, мотивації та механізми впливу. Тут зібрані ресурси, що допоможуть навчити учнів критично сприймати інформацію.</p>
-              <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                <div>
-                  <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="http://www.medialiteracy.org.ua/">Портал «Медіаосвіта та медіаграмотність» АУП</a>
-                  <p class="text-sm text-slate-500 searchable-content">Електронна бібліотека, розробки уроків, відео та інші корисні матеріали від Академії української преси.</p>
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Медіаграмотність</h2>
+            <p class="text-slate-600 searchable">Від розпізнавання фейків до розуміння механізмів впливу та інфомедійної культури.</p>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+              <!-- Модельні програми та посібники -->
+              <div class="bg-white p-6 rounded-xl shadow space-y-3">
+                <h3 class="text-lg font-semibold searchable">Модельні програми та посібники (5–11 класи)</h3>
+                <ul class="list-disc list-inside space-y-1">
+                  <li class="searchable">«Основи медіаграмотності» (5–6), «Інтегр. курс» (7–8) — АУП/ЦВП.</li>
+                  <li class="searchable">«Основи МІГ» (10–11) — посібник для вчителя.</li>
+                  <li class="searchable">«Медіаграмотність на уроках суспільних дисциплін», «Критичне мислення…» (ЦВП/АУП).</li>
+                  <li class="searchable">«7 кроків до здорового медіаспоживання під час війни» (IREX).</li>
+                </ul>
+                <div class="space-y-1">
+                  <a class="text-blue-600 hover:underline ext" target="_blank" href="http://www.medialiteracy.org.ua/">Портал «Медіаосвіта та медіаграмотність»</a><br>
+                  <a class="text-blue-600 hover:underline ext" target="_blank" href="https://filter.mcsc.gov.ua/projects/">Нацпроект «Фільтр» (уроки, відео, ігри)</a>
                 </div>
-                <div>
-                  <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://filter.mkip.gov.ua/">Національний проєкт «Фільтр»</a>
-                  <p class="text-sm text-slate-500 searchable-content">Проєкт Міністерства культури та інформаційної політики з добірками уроків, ігор та вправ з медіаграмотності.</p>
-                </div>
-                <div>
-                  <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://vse.ee/7krokivIREX">7 кроків до здорового медіаспоживання (IREX)</a>
-                  <p class="text-sm text-slate-500 searchable-content">Практичний посібник для вчителя про те, як навчити учнів відповідально споживати інформацію під час війни.</p>
-                </div>
+              </div>
+
+              <!-- Курси -->
+              <div class="bg-white p-6 rounded-xl shadow space-y-3">
+                <h3 class="text-lg font-semibold searchable">Онлайн-курси для вчительства</h3>
+                <ul class="list-disc list-inside space-y-1">
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://study.ed-era.com/uk/courses/course/6177">Very Verified 2.0 (EdEra)</a> — 15 год, сертифікат 0,5 ЄКТС.</li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://eduhub.in.ua/courses/vivchay-ta-rozriznyay-infomediyna-gramotnist-v-osviti">Впровадження медіаграмотності (IREX)</a> — 30 год/1 ЄКТС (SCORM).</li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://eduhub.in.ua/courses/onlayn-kurs-mediagramotniy-sprotiv-buduyemo-argumentovani-dialogi">«Медіаграмотний спротив: будуємо аргументовані діалоги»</a></li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://eduhub.in.ua/courses/onlayn-kurs-mediagramotniy-sprotiv-spilkuyemos-na-rivnih">«Медіаграмотний спротив: спілкуємось на рівних»</a></li>
+                </ul>
               </div>
             </div>
           </div>
 
-          <!-- Розділ: ШІ в освіті -->
+          <!-- ШІ -->
           <div id="ai" class="tab-pane hidden space-y-4">
-            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable-content">ШІ в освіті</h2>
-            <div class="bg-white p-6 rounded-xl shadow space-y-4 text-slate-700">
-              <p class="searchable-content">Штучний інтелект може стати незамінним помічником для вчителя: від підготовки до уроків до створення завдань та ілюстрацій. Ознайомтеся з ресурсами, які допоможуть опанувати ці інструменти.</p>
-              <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                <div>
-                  <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://prometheus.org.ua/course/course-v1:Prometheus+AI-for-Edu101+2023_T3">Курс «Штучний інтелект в освіті» (Prometheus)</a>
-                  <p class="text-sm text-slate-500 searchable-content">Курс охоплює основи ШІ, його використання у підготовці уроків, створення завдань та етичні аспекти.</p>
-                </div>
-                <div>
-                  <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://naurok.com.ua/learn/shtuchniy-intelekt---personalniy-pomichnik-vchitelya-62">Онлайн‑курс «ШІ — персональний помічник» (НаУрок)</a>
-                  <p class="text-sm text-slate-500 searchable-content">Практичні відео та матеріали для автоматизації роботи та розвитку критичного мислення.</p>
-                </div>
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Штучний інтелект в освіті</h2>
+            <p class="text-slate-600 searchable">Етичне та безпечне використання, інструменти підтримки уроку, створення завдань і візуалізацій.</p>
+
+            <div class="bg-white p-6 rounded-xl shadow space-y-3">
+              <ul class="list-disc list-inside space-y-1">
+                <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://naurok.com.ua/learn/shtuchniy-intelekt---personalniy-pomichnik-vchitelya-62">ШІ — персональний помічник учителя</a> (практичні відео).</li>
+                <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://osvita.diia.gov.ua/courses/artificial-intelligence">Курс Мінцифри/«Дія»: що таке ШІ, ризики, застосування</a>.</li>
+                <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://academyranok.com.ua/course/shtuchnyj-intelekt-ta-czyfrovi-tehnologiyi-v-osviti-pryrodnycha-galuz/">ШІ та цифрові технології в освіті (природнича галузь)</a> ~15 год.</li>
+                <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://ai-course.study/">ШІ: від початківця до експерта</a> (ChatGPT, Gemini, Claude, Copilot; тексти/зображення/таблиці, fact-checking).</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- СЕН -->
+          <div id="sel" class="tab-pane hidden space-y-4">
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Соціально-емоційне навчання (СЕН) та підтримка</h2>
+            <p class="text-slate-600 searchable">Підтримка благополуччя дітей і педагогів, наступність дошкілля-школа, практики розвантаження.</p>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+              <div class="bg-white p-6 rounded-xl shadow space-y-3">
+                <h3 class="text-lg font-semibold searchable">Матеріали та ініціативи</h3>
+                <ul class="list-disc list-inside space-y-1">
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://testportal.gov.ua/wp-content/uploads/2021/08/ILID_FS-on-SEL_final.pdf">Огляд «Можливості для реалізації СЕН у НУШ»</a></li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://nus.org.ua/wp-content/uploads/2021/12/POSIBNYK-dlya-roboty-z-batkivstvom-VEB.pdf">Посібник «Я (практикую) СЕЕН…» (EdCamp)</a></li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://strapi-cms.seelearning.emory.edu/uploads/UKR_Late_Elementary_CH_1_2_b5a209d437.pdf">SEE Learning (3–4 класи) — матеріали укр.</a></li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://dosen.edcamp.ua/rezultaty">Міжнародне дослідження ДоСЕН: результати</a></li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://www.prometheus.org.ua/prometheus-free/learning-quality-sel-psychosocial-support/">Курс: СЕН і психосоціальна підтримка</a></li>
+                </ul>
+              </div>
+
+              <div class="bg-white p-6 rounded-xl shadow space-y-3">
+                <h3 class="text-lg font-semibold searchable">Практики в класі</h3>
+                <ul class="list-disc list-inside space-y-1">
+                  <li class="searchable">Ранкові зустрічі з рефлексією та «колом довіри».</li>
+                  <li class="searchable">Мікропаузи/дихальні вправи (психологічне розвантаження).</li>
+                  <li class="searchable">Правила співжиття класу, рольові ігри, групова робота.</li>
+                </ul>
               </div>
             </div>
           </div>
 
-          <!-- Розділ: СЕН та підтримка -->
-          <div id="sel" class="tab-pane hidden space-y-4">
-            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable-content">СЕН та психосоціальна підтримка</h2>
-            <div class="bg-white p-6 rounded-xl shadow space-y-4 text-slate-700">
-              <p class="searchable-content">Ресурси для посилення компонентів із соціально-емоційного навчання (СЕН) та підтримки благополуччя дітей і педагогів, що є особливо важливим в умовах війни.</p>
-              <div class="border-l-4 border-blue-200 pl-4 space-y-3">
-                 <div>
-                  <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://edcamp.ua/seec-handbook/">Посібник «Я (практикую) СЕЕН» від EdCamp Україна</a>
-                  <p class="text-sm text-slate-500 searchable-content">Посібник для створення професійної спільноти та впровадження практик соціально-емоційного та етичного навчання.</p>
-                </div>
-                <div>
-                  <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://mon.gov.ua/ua/news/mi-z- вами-poruch-yak-programa-zerna-dopomagaye-dityam-i-pedagogam-vidnovlyuvatisya-pid-chas-vijni">Програма СЕН «Зерна» від The LEGO Foundation</a>
-                  <p class="text-sm text-slate-500 searchable-content">Національна програма для розвитку соціально-емоційних навичок та підтримки благополуччя дітей і педагогів.</p>
-                </div>
-                <div>
-                  <a class="font-medium text-blue-600 hover:underline searchable-content" target="_blank" href="https://dosen.edcamp.ua/rezultaty">Результати дослідження ДОСЕН</a>
-                  <p class="text-sm text-slate-500 searchable-content">Результати міжнародного дослідження соціально-емоційних навичок, які допоможуть краще зрозуміти потреби учнів.</p>
-                </div>
-              </div>
+          <!-- Патріотичне виховання -->
+          <div id="patriot" class="tab-pane hidden space-y-4">
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Національно-патріотичне виховання</h2>
+            <p class="text-slate-600 searchable">Проєктуємо вміст уроків, спираючись на Концепцію НПВ (2022) та методичні рекомендації МОН.</p>
+            <div class="bg-white p-6 rounded-xl shadow space-y-2">
+              <p class="text-slate-700 searchable">Інтегруємо громадянську позицію, історичну пам’ять, волонтерські практики, медіагігієну, критичне мислення.</p>
+              <p class="text-sm text-slate-500 searchable">Офіційні матеріали див. на сайті МОН (розділ загальної середньої освіти).</p>
             </div>
           </div>
+
+          <!-- Нормативна база -->
+          <div id="legal" class="tab-pane hidden space-y-4">
+            <h2 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-500 pb-2 searchable">Нормативна база та довідки</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="bg-white p-6 rounded-xl shadow space-y-2">
+                <h3 class="text-lg font-semibold searchable">Стандарти та порядки</h3>
+                <ul class="list-disc list-inside space-y-1">
+                  <li class="searchable">Держстандарт початкової освіти — ПКМУ № 87 від 21.02.2018.</li>
+                  <li class="searchable">Держстандарт базової середньої освіти — ПКМУ № 898 від 30.09.2020 (зі змінами ПКМУ № 972 від 30.08.2022).</li>
+                  <li class="searchable">Держстандарт базової та повної ЗСО — ПКМУ № 1392 від 23.11.2011.</li>
+                  <li class="searchable">Порядок спецкласів у ЗЗСО — наказ МОН № 1182 від 22.08.2024 (чинний з 01.09.2025).</li>
+                </ul>
+              </div>
+              <div class="bg-white p-6 rounded-xl shadow space-y-2">
+                <h3 class="text-lg font-semibold searchable">Ключові посилання</h3>
+                <ul class="list-disc list-inside space-y-1">
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://mon.gov.ua/">Міністерство освіти і науки України</a></li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://imzo.gov.ua/">ІМЗО</a> — переліки грифованої літератури</li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://uied.org.ua/">УІРО</a> — аналітика, методичні матеріали</li>
+                  <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://sqe.gov.ua/">ДСЯО</a> — методичні матеріали, звіти</li>
+                </ul>
+              </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow">
+              <h3 class="text-lg font-semibold mb-2 searchable">Пов’язані листи та документи</h3>
+              <ul class="list-disc list-inside space-y-1">
+                <li class="searchable"><a class="text-blue-600 hover:underline ext" target="_blank" href="https://mon.gov.ua/static-objects/mon/uploads/public/66d/ffe/c4c/66dffec4c92d2958213439.pdf">Лист МОН 30.08.2024 № 1.1/15776-24 (2024/2025)</a></li>
+              </ul>
+              <p class="mt-3 text-sm text-slate-500 searchable">Ця сторінка узгоджена з «Освітнім навігатором на 2025/2026 н.р.» (лист МОН № 1/16828).</p>
+            </div>
+          </div>
+
         </section>
       </div>
     </main>
 
-    <!-- Підвал сайту -->
-    <footer class="border-t bg-slate-50 mt-8">
-      <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-sm text-slate-500 flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
-        <div>© <span id="year"></span> UGS — Освітній навігатор</div>
-        <a class="hover:text-slate-700" href="https://globalschool.in.ua/" target="_blank">Сайт Ukrainian Global School</a>
-      </div>
+    <!-- Footer -->
+    <footer class="py-8 text-center text-sm text-slate-500">
+      © Ukrainian Global School • Освітній навігатор UGS • 2025
     </footer>
   </div>
 
   <script>
-    // Ініціалізація іконок Lucide
+    // Init icons
     lucide.createIcons();
 
-    // --- Логіка вкладок (табів) ---
+    // Tabs
     const tabs = document.querySelectorAll('#main-tabs button');
     const panes = document.querySelectorAll('.tab-pane');
-    const searchInput = document.getElementById('global-search');
-
-    tabs.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.tab;
-        
-        // Оновлення стилів кнопок-вкладок
-        tabs.forEach(b => {
-          b.classList.toggle('tab-active', b === btn);
-          b.classList.toggle('tab-inactive', b !== btn);
-        });
-        
-        // Показ відповідної панелі контенту
-        panes.forEach(p => p.classList.toggle('hidden', p.id !== id));
-        
-        // Очищення пошуку при зміні вкладки
-        searchInput.value = '';
-        handleSearch('');
-        
-        // Плавна прокрутка до верху сторінки
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    tabs.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        tabs.forEach(b=>b.classList.remove('tab-active')); tabs.forEach(b=>b.classList.add('tab-inactive'));
+        btn.classList.remove('tab-inactive'); btn.classList.add('tab-active');
+        const id = btn.getAttribute('data-tab');
+        panes.forEach(p=>p.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+        // reset search navigation anchor
+        currentIdx = -1; updateStatus();
       });
     });
 
-    // --- Логіка акордеону ---
-    // Додаємо обробник подій до кожного заголовка акордеону
-    document.querySelectorAll('.accordion-header').forEach(header => {
-      header.addEventListener('click', (e) => {
-        // Ігноруємо кліки по посиланнях всередині заголовка
-        if (e.target.closest('a')) return;
-        
-        // Перемикаємо клас 'active' для поточного заголовка
-        header.classList.toggle('active');
-      });
-    });
-    
-    // --- Логіка пошуку ---
-    // Зберігаємо оригінальний HTML контент елементів, в яких будемо шукати
-    const originalContent = new Map();
-    document.querySelectorAll('.searchable-content').forEach((el, index) => {
-        const originalIndex = `original-${index}`;
-        el.dataset.originalIndex = originalIndex;
-        originalContent.set(originalIndex, el.innerHTML);
-    });
-
-    // Функція для обробки пошукового запиту
-    function handleSearch(query) {
-        const searchableElements = document.querySelectorAll('.searchable-content');
-        const normalizedQuery = query.trim().toLowerCase();
-        const activeTabId = document.querySelector('#main-tabs .tab-active').dataset.tab;
-
-        // Якщо пошук не активний, відновлюємо вигляд за замовчуванням
-        if (!normalizedQuery) {
-            searchableElements.forEach(el => {
-                // Відновлюємо оригінальний контент
-                el.innerHTML = originalContent.get(el.dataset.originalIndex);
-                
-                // Показуємо/ховаємо елементи залежно від активної вкладки
-                const parentPane = el.closest('.tab-pane');
-                if (parentPane) {
-                    parentPane.classList.toggle('hidden', parentPane.id !== activeTabId);
-                }
-            });
-            // Закриваємо всі акордеони
-            document.querySelectorAll('.accordion-header').forEach(h => h.classList.remove('active'));
-            lucide.createIcons(); // Перемальовуємо іконки
-            return;
+    // Accordions
+    document.querySelectorAll('.accordion-header').forEach(h=>{
+      h.addEventListener('click',()=>{
+        h.classList.toggle('active');
+        const icon = h.querySelector('.icon');
+        const content = h.nextElementSibling;
+        if(h.classList.contains('active')){
+          content.style.maxHeight = content.scrollHeight + 'px';
+        } else {
+          content.style.maxHeight = 0;
         }
-
-        // Якщо пошук активний
-        const regex = new RegExp(normalizedQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
-        
-        // Показуємо всі панелі, щоб шукати по всьому контенту
-        panes.forEach(p => p.classList.remove('hidden'));
-
-        searchableElements.forEach(el => {
-            const originalHtml = originalContent.get(el.dataset.originalIndex);
-            const textContent = el.textContent.toLowerCase();
-            
-            // Перевіряємо, чи є збіг
-            if (textContent.includes(normalizedQuery)) {
-                // Відновлюємо оригінальний HTML і підсвічуємо збіги
-                el.innerHTML = originalHtml.replace(regex, `<span class="search-highlight">$&</span>`);
-                el.style.display = ''; // Показуємо елемент
-
-                // Відкриваємо батьківський акордеон, якщо є
-                const accordionHeader = el.closest('.accordion-content')?.previousElementSibling;
-                if (accordionHeader && accordionHeader.classList.contains('accordion-header')) {
-                    accordionHeader.classList.add('active');
-                }
-            } else {
-                // Ховаємо елемент, якщо немає збігу
-                el.style.display = 'none';
-            }
-        });
-        lucide.createIcons(); // Перемальовуємо іконки
-    }
-    
-    // Додаємо обробник подій на поле пошуку
-    searchInput.addEventListener('input', e => handleSearch(e.target.value));
-
-    // --- Ініціалізація сторінки ---
-    document.addEventListener('DOMContentLoaded', () => {
-        // Встановлюємо поточний рік у підвалі
-        document.getElementById('year').textContent = new Date().getFullYear();
+      });
     });
+
+    // Client-side search with highlight & navigation (for static site)
+    const searchInput = document.getElementById('global-search');
+    const statusEl = document.getElementById('search-status');
+    let matches = [];
+    let currentIdx = -1;
+
+    function clearHighlights(){
+      document.querySelectorAll('.search-highlight').forEach(el=>{
+        const parent = el.parentNode;
+        parent.replaceChild(document.createTextNode(el.textContent), el);
+        parent.normalize();
+      });
+    }
+
+    function highlight(term){
+      if(!term) return;
+      const nodes = Array.from(document.querySelectorAll('.searchable'));
+      const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+      nodes.forEach(node=>{
+        node.childNodes.forEach(child=>{
+          if(child.nodeType===Node.TEXT_NODE){
+            const text = child.textContent;
+            const frag = document.createDocumentFragment();
+            let lastIdx = 0;
+            text.replace(regex,(m,offset)=>{
+              const before = text.slice(lastIdx, offset);
+              if(before) frag.appendChild(document.createTextNode(before));
+              const mark = document.createElement('mark');
+              mark.className='search-highlight';
+              mark.textContent = m;
+              frag.appendChild(mark);
+              lastIdx = offset + m.length;
+            });
+            if(lastIdx===0) return;
+            const after = text.slice(lastIdx);
+            if(after) frag.appendChild(document.createTextNode(after));
+            child.parentNode.replaceChild(frag, child);
+          }
+        });
+      });
+    }
+
+    function collectMatches(){
+      matches = Array.from(document.querySelectorAll('.search-highlight'));
+    }
+
+    function scrollToCurrent(){
+      if(currentIdx<0 || currentIdx>=matches.length) return;
+      const el = matches[currentIdx];
+      el.scrollIntoView({behavior:'smooth', block:'center'});
+      el.animate([{background:'#fde68a'},{background:'#fef9c3'}],{duration:600});
+    }
+
+    function updateStatus(){
+      if(matches.length>0){
+        statusEl.classList.remove('hidden');
+        statusEl.textContent = (currentIdx+1) + ' / ' + matches.length;
+      } else {
+        statusEl.classList.add('hidden');
+      }
+    }
+
+    function runSearch(){
+      clearHighlights();
+      const term = searchInput.value.trim();
+      if(!term){ matches=[]; currentIdx=-1; updateStatus(); return; }
+      highlight(term);
+      collectMatches();
+      currentIdx = matches.length ? 0 : -1;
+      updateStatus();
+      scrollToCurrent();
+    }
+
+    // Search functionality temporarily disabled
+    /*
+    searchInput.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){ runSearch(); }
+    });
+
+    document.addEventListener('keydown', (e)=>{
+      if(e.key.toLowerCase()==='f' && !e.ctrlKey && !e.metaKey && !e.altKey){
+        e.preventDefault();
+        if(matches.length===0) return;
+        if(e.shiftKey){
+          currentIdx = (currentIdx-1+matches.length)%matches.length;
+        } else {
+          currentIdx = (currentIdx+1)%matches.length;
+        }
+        updateStatus();
+        scrollToCurrent();
+      }
+    });
+    */
 
   </script>
 </body>
