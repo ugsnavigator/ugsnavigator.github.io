@@ -3,13 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тренінг для вчителів: Науково-дослідницькі проєкти</title>
+    <title>Тренінг: Організація наукових проєктів</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .quiz-answer { transition: all 0.3s ease-in-out; }
+        .step-counter { counter-reset: step; }
+        .step-item::before {
+            counter-increment: step;
+            content: counter(step);
+            width: 2rem;
+            height: 2rem;
+            background-color: #0f766e; /* teal-700 */
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-right: 0.75rem;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -18,8 +33,10 @@
     <nav class="bg-blue-900 text-white sticky top-0 z-50 shadow-lg">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="font-bold text-lg"><i class="fas fa-graduation-cap mr-2"></i>School Research Hub</div>
-            <div class="hidden lg:flex space-x-3 text-xs">
+            <div class="hidden xl:flex space-x-4 text-xs font-semibold">
                 <a href="#concept" class="hover:text-blue-300 transition">Концепція</a>
+                <a href="#format" class="hover:text-blue-300 transition">Формат події</a>
+                <a href="#stages" class="hover:text-yellow-300 transition text-yellow-300">Етапи (Admin)</a>
                 <a href="#roles" class="hover:text-blue-300 transition">Ролі</a>
                 <a href="#topics" class="hover:text-blue-300 transition">Теми</a>
                 <a href="#canvas" class="hover:text-blue-300 transition">Паспорт</a>
@@ -28,6 +45,7 @@
                 <a href="#ethics" class="hover:text-blue-300 transition">Етика</a>
                 <a href="#poster" class="hover:text-blue-300 transition">Постер</a>
                 <a href="#assessment" class="hover:text-blue-300 transition">Оцінювання</a>
+                <a href="#admin" class="hover:text-blue-300 transition">Адміністрування</a>
                 <a href="#resources" class="hover:text-blue-300 transition">Ресурси</a>
             </div>
         </div>
@@ -37,12 +55,15 @@
     <header class="bg-gradient-to-r from-blue-800 to-indigo-900 text-white py-20">
         <div class="container mx-auto px-4 text-center">
             <h1 class="text-3xl md:text-5xl font-bold mb-4">Організація виставки науково-дослідницьких проєктів</h1>
-            <p class="text-xl text-blue-100 max-w-2xl mx-auto">Тренінг для вчителів початкової школи (1-4 класи). Практичний гід згідно шкільного довідника.</p>
-            <a href="#concept" class="mt-8 inline-block bg-yellow-500 text-blue-900 font-bold py-3 px-8 rounded-full hover:bg-yellow-400 transition shadow-lg">Розпочати навчання</a>
+            <p class="text-xl text-blue-100 max-w-2xl mx-auto">Повний гід для вчителя: від ідеї до пітчу (1-4 класи).</p>
+            <div class="mt-8 flex justify-center gap-4 flex-wrap">
+                <a href="#concept" class="bg-yellow-500 text-blue-900 font-bold py-3 px-8 rounded-full hover:bg-yellow-400 transition shadow-lg">Розпочати навчання</a>
+                <a href="#resources" class="bg-transparent border-2 border-white text-white font-bold py-3 px-8 rounded-full hover:bg-white hover:text-blue-900 transition">Завантажити шаблони</a>
+            </div>
         </div>
     </header>
 
-    <main class="container mx-auto px-4 py-12 space-y-20">
+    <main class="container mx-auto px-4 py-12 space-y-16">
 
         <!-- Block 1: Concept -->
         <section id="concept" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-blue-600">
@@ -51,843 +72,859 @@
                     <span class="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">1</span>
                     Концепція та цілі
                 </h2>
-                
                 <div class="grid md:grid-cols-2 gap-8 mb-6">
                     <div>
                         <h3 class="font-bold text-lg mb-3"><i class="fas fa-check-circle text-green-500 mr-2"></i>Суть проєкту</h3>
-                        <p class="text-gray-600 mb-4">Це підсумкова подія, де команди дітей (7-10 років) публічно демонструють результати досліджень.</p>
-                        <div class="bg-blue-50 p-4 rounded-lg font-semibold text-center text-blue-800 text-sm md:text-base">
-                            Проблема <i class="fas fa-arrow-right mx-1 text-xs"></i> Дані <i class="fas fa-arrow-right mx-1 text-xs"></i> Висновки <i class="fas fa-arrow-right mx-1 text-xs"></i> Рішення
+                        <p class="text-gray-600 mb-4 text-sm">Це підсумкова подія, де команди дітей (7–10 років) демонструють результати власних досліджень. Ключовий ланцюжок:</p>
+                        <div class="bg-blue-50 p-3 rounded-lg font-bold text-center text-blue-800 text-sm">
+                            Проблема <i class="fas fa-arrow-right mx-1 text-xs"></i> Збір даних <i class="fas fa-arrow-right mx-1 text-xs"></i> Висновки <i class="fas fa-arrow-right mx-1 text-xs"></i> Рішення/Вплив
                         </div>
                     </div>
                     <div>
                         <h3 class="font-bold text-lg mb-3"><i class="fas fa-times-circle text-red-500 mr-2"></i>Чим це НЕ є?</h3>
                         <ul class="space-y-2 text-gray-600 text-sm">
-                            <li><i class="fas fa-times text-red-300 mr-2"></i><strong>Не реферат:</strong> заборонено просто переказувати книжки без власних даних.</li>
-                            <li><i class="fas fa-times text-red-300 mr-2"></i><strong>Не поробка заради поробки:</strong> виріб має базуватися на дослідженні.</li>
-                            <li><i class="fas fa-times text-red-300 mr-2"></i><strong>Не шоу:</strong> оцінюється логіка даних, а не костюми.</li>
+                            <li><i class="fas fa-times text-red-300 mr-2"></i><strong>Не реферат:</strong> заборонено просто переказувати книги чи сайти без власних даних.</li>
+                            <li><i class="fas fa-times text-red-300 mr-2"></i><strong>Не виставка поробок:</strong> будь-який виріб має базуватися на дослідженні.</li>
+                            <li><i class="fas fa-times text-red-300 mr-2"></i><strong>Не шоу:</strong> оцінюється логіка даних та висновків, а не костюми чи декор.</li>
                         </ul>
                     </div>
                 </div>
 
-                <!-- Quiz Block -->
-                <div class="bg-slate-800 text-white p-6 rounded-lg shadow-inner">
-                    <div class="flex items-start">
-                        <i class="fas fa-question-circle text-yellow-400 text-3xl mr-4 mt-1"></i>
-                        <div class="w-full">
-                            <h4 class="font-bold text-lg mb-2">Перевірка знань</h4>
-                            <p class="mb-4">Учні зробили красивий макет вулкану з пап'є-маше та розповіли факти з енциклопедії. Чи зараховується це як проєкт?</p>
-                            <button onclick="toggleAnswer('ans1')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm transition">Показати відповідь</button>
-                            <div id="ans1" class="hidden mt-4 bg-slate-700 p-4 rounded border-l-4 border-yellow-500">
-                                <p><strong>Ні.</strong> Це "реферат + поробка". Дослідницький проєкт вимагає отримання <strong>нових даних</strong> (наприклад, "Яка суміш дає найвище виверження?" з вимірюванням висоти в см).</p>
-                            </div>
-                        </div>
+                <div class="grid md:grid-cols-3 gap-4 text-sm mt-4">
+                    <div class="bg-blue-50 p-4 rounded border border-blue-100">
+                        <h4 class="font-bold mb-2 text-blue-800">Головні цілі для учнів</h4>
+                        <ul class="list-disc list-inside text-xs text-gray-700 space-y-1">
+                            <li>Навчитися ставити дослідницькі питання.</li>
+                            <li>Працювати з даними, а не з «думками». </li>
+                            <li>Презентувати результати та робити висновки.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded border border-blue-100">
+                        <h4 class="font-bold mb-2 text-blue-800">Цілі для вчителя</h4>
+                        <ul class="list-disc list-inside text-xs text-gray-700 space-y-1">
+                            <li>Запустити дослідницьку культуру в класі/школі.</li>
+                            <li>Інтегрувати математику, природознавство, мову.</li>
+                            <li>Побудувати систему оцінювання процесу, а не «таланту».</li>
+                        </ul>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded border border-blue-100">
+                        <h4 class="font-bold mb-2 text-blue-800">Фокус доброчесності</h4>
+                        <ul class="list-disc list-inside text-xs text-gray-700 space-y-1">
+                            <li>Працювати з «сирими даними».</li>
+                            <li>Чітко позначати джерела та авторство.</li>
+                            <li>Дотримуватися етичних та безпекових правил.</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Block 2: Roles -->
+        <!-- Block 1.1: Event Format -->
+        <section id="format" class="bg-sky-50 rounded-xl shadow-md overflow-hidden border-l-4 border-sky-500">
+            <div class="p-8">
+                <h2 class="text-2xl font-bold text-sky-900 mb-6 flex items-center">
+                    <span class="bg-sky-100 text-sky-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">
+                        <i class="fas fa-users"></i>
+                    </span>
+                    Формат події та учасники
+                </h2>
+
+                <div class="grid md:grid-cols-3 gap-6 text-sm">
+                    <div class="bg-white rounded-lg p-4 border border-sky-100">
+                        <h3 class="font-bold text-sky-800 mb-2 text-sm">Формат виставки</h3>
+                        <ul class="list-disc list-inside text-xs text-gray-700 space-y-1">
+                            <li>1–2 дні постер-сесій у просторі школи.</li>
+                            <li>Кожна команда має стенд + час для пітчу (3 хв).</li>
+                            <li>Гості рухаються між стендами у форматі «наукового ярмарку».</li>
+                            <li>Є зона презентацій, зона відпочинку, «тиха зона».</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border border-sky-100">
+                        <h3 class="font-bold text-sky-800 mb-2 text-sm">Учасники та ролі</h3>
+                        <ul class="list-disc list-inside text-xs text-gray-700 space-y-1">
+                            <li><strong>Учні-команди:</strong> готують дослідження і постер.</li>
+                            <li><strong>Ментори/вчителі:</strong> супровід процесу, етика, дані.</li>
+                            <li><strong>Адміністрація:</strong> дата, бюджет, безпека, логістика.</li>
+                            <li><strong>Батьки/експерти:</strong> гості, журі, фідбек.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border border-sky-100">
+                        <h3 class="font-bold text-sky-800 mb-2 text-sm">Структура події</h3>
+                        <ul class="list-disc list-inside text-xs text-gray-700 space-y-1">
+                            <li>Офіційне відкриття (коротка промова, правила).</li>
+                            <li>Дві-три хвилі постер-сесій (за класами/темами).</li>
+                            <li>Робота журі та взаємооцінювання учнів.</li>
+                            <li>Підсумки: оголошення результатів, рефлексія, плани «що далі».</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Block 2: Management Stages (Section 2) -->
+        <section id="stages" class="bg-indigo-50 rounded-xl shadow-md overflow-hidden border-l-4 border-indigo-600">
+            <div class="p-8">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-6 flex items-center">
+                    <span class="bg-indigo-200 text-indigo-700 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">2</span>
+                    Управлінські етапи (для координатора/вчителя)
+                </h2>
+                <p class="mb-4 text-sm text-gray-600">Ключові кроки організації згідно Розділу ІІ довідника:</p>
+                
+                <div class="grid md:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-indigo-800 mb-1">1. Стратегічна підготовка</div>
+                        <p class="text-xs text-gray-500">Дата, формат, бюджет, політики безпеки/етики, рубрики.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-indigo-800 mb-1">2. Запуск ідей</div>
+                        <p class="text-xs text-gray-500">Мозкові штурми, оцінка критеріїв, формування Паспорту.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-indigo-800 mb-1">3. Проєктування</div>
+                        <p class="text-xs text-gray-500">Ролі, таймлайн, ризики, ресурси, <strong>етичні дозволи</strong>.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-gray-800 mb-1">4. Дослідження 1</div>
+                        <p class="text-xs text-gray-500">Збір первинних/вторинних даних, ведення журналу.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-gray-800 mb-1">5. Дослідження 2 (Прототип)</div>
+                        <p class="text-xs text-gray-500">Аналіз даних, висновки, перші рішення, мікротести.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-gray-800 mb-1">6. Розробка продукту/постера</div>
+                        <p class="text-xs text-gray-500">Фіналізація, оформлення за шаблоном, тренування пітчу.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-green-700 mb-1">7. Виставка</div>
+                        <p class="text-xs text-gray-500">Постер-сесії, захисти, збір фідбеку.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-green-700 mb-1">8. Оцінювання й рефлексія</div>
+                        <p class="text-xs text-gray-500">Рубрики, самооцінка, підсумковий звіт.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <div class="font-bold text-green-700 mb-1">9. Поширення</div>
+                        <p class="text-xs text-gray-500">Публікація кейсів, планування наступних кроків.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Block 3: Roles -->
         <section id="roles" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-purple-600">
             <div class="p-8">
                 <h2 class="text-2xl font-bold text-purple-900 mb-6 flex items-center">
-                    <span class="bg-purple-100 text-purple-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">2</span>
+                    <span class="bg-purple-100 text-purple-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">3</span>
                     Ролі та відповідальність
                 </h2>
 
                 <div class="grid md:grid-cols-2 gap-8 mb-8">
-                    <div class="border border-purple-100 rounded-lg p-6">
-                        <h3 class="text-xl font-bold text-purple-800 mb-4 border-b pb-2">Вчитель (Ментор)</h3>
-                        <ul class="space-y-3 text-sm text-gray-700">
-                            <li class="flex"><i class="fas fa-chalkboard-teacher text-purple-500 mt-1 mr-2"></i> Навчає методам (як створити опитування).</li>
-                            <li class="flex"><i class="fas fa-shield-alt text-purple-500 mt-1 mr-2"></i> <strong>Безпека та Етика:</strong> збір згод батьків.</li>
-                            <li class="flex"><i class="fas fa-check-double text-purple-500 mt-1 mr-2"></i> Перевірка "сирих даних" (журналів).</li>
-                        </ul>
-                    </div>
-                    <div class="border border-blue-100 rounded-lg p-6">
-                        <h3 class="text-xl font-bold text-blue-800 mb-4 border-b pb-2">Базові ролі учнів (обов'язкові)</h3>
-                        <div class="grid grid-cols-1 gap-2 text-sm">
-                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Координатор:</span> Дедлайни та план.</div>
-                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Дослідник:</span> Проведення дослідів, протоколи.</div>
-                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Аналітик:</span> Таблиці "було/стало", графіки.</div>
-                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Дизайнер:</span> Прототип та верстка постера.</div>
-                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Комунікатор:</span> Пітч та відповіді на питання.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-purple-50 p-6 rounded-lg mb-6">
-                    <h3 class="font-bold text-purple-800 mb-4"><i class="fas fa-plus-circle mr-2"></i>Додаткові ролі (за потреби для команд 4-5 осіб)</h3>
-                    <div class="grid md:grid-cols-3 gap-3 text-sm">
-                        <div class="bg-white p-3 rounded shadow-sm">
-                            <div class="font-bold text-purple-700 mb-1">Секретар</div>
-                            <p class="text-xs text-gray-600">Порядок у файлах, протоколи зустрічей, фото-документація</p>
-                        </div>
-                        <div class="bg-white p-3 rounded shadow-sm">
-                            <div class="font-bold text-purple-700 mb-1">Контролер якості</div>
-                            <p class="text-xs text-gray-600">Чек-листи якості, згоди батьків, анонімізація</p>
-                        </div>
-                        <div class="bg-white p-3 rounded shadow-sm">
-                            <div class="font-bold text-purple-700 mb-1">Таймкіпер/Логіст</div>
-                            <p class="text-xs text-gray-600">Таймінг сесій, бронювання простору, готовність стенду</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 mb-8">
-                    <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-sync-alt mr-2"></i>Ротація і підстраховка</h3>
-                    <ul class="text-sm text-blue-900 space-y-1">
-                        <li>• Мінімум <strong>одна "тіньова" роль</strong>: кожен базовий функціонал має дублера</li>
-                        <li>• <strong>Ротація презентатора:</strong> на репетиціях кожен пробує 1 раз</li>
-                        <li>• Координатор робить щотижневий короткий звіт про статус і ризики</li>
-                    </ul>
-                </div>
-
-                <!-- Quiz Block -->
-                <div class="bg-slate-800 text-white p-6 rounded-lg shadow-inner">
-                    <div class="flex items-start">
-                        <i class="fas fa-question-circle text-yellow-400 text-3xl mr-4 mt-1"></i>
-                        <div class="w-full">
-                            <h4 class="font-bold text-lg mb-2">Перевірка знань</h4>
-                            <p class="mb-4">Хто відповідає за те, щоб графіки були побудовані на реальних цифрах, а не вигадані?</p>
-                            <button onclick="toggleAnswer('ans2')" class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded text-sm transition">Показати відповідь</button>
-                            <div id="ans2" class="hidden mt-4 bg-slate-700 p-4 rounded border-l-4 border-yellow-500">
-                                <p><strong>Аналітик даних</strong> (відповідає за зведення) та <strong>Ментор</strong> (перевіряє журнал із "сирими даними" на етапі чек-інів).</p>
+                    <div class="border border-purple-100 rounded-lg p-5">
+                        <h3 class="text-lg font-bold text-purple-800 mb-3 border-b pb-2">Дорослі</h3>
+                        <div class="space-y-4 text-sm">
+                            <div>
+                                <span class="font-bold block">Координатор виставки:</span>
+                                <span class="text-gray-600 text-xs">Загальна мета, календар, бюджет, безпека, логістика, комунікація з адміністрацією та батьками.</span>
+                            </div>
+                            <div>
+                                <span class="font-bold block">Вчитель (Ментор):</span>
+                                <ul class="list-disc list-inside text-gray-600 ml-1 text-xs space-y-1">
+                                    <li>Щотижневі чек-іни з командами.</li>
+                                    <li>Навчання методам дослідження і роботи з даними.</li>
+                                    <li>Контроль етики (згоди батьків) та ведення журналів.</li>
+                                </ul>
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="border border-blue-100 rounded-lg p-5">
+                        <h3 class="text-lg font-bold text-blue-800 mb-3 border-b pb-2">Учнівська команда (базові ролі)</h3>
+                        <div class="grid grid-cols-1 gap-2 text-sm">
+                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Координатор:</span> Дедлайни, план, комунікація з ментором.</div>
+                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Дослідник:</span> Проведення дослідів, протоколи, збір даних.</div>
+                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Аналітик:</span> Таблиці "було/стало", графіки, чистота даних.</div>
+                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Дизайнер/Мейкер:</span> Прототип продукту та верстка постера.</div>
+                            <div class="bg-gray-50 p-2 rounded"><span class="font-bold">Комунікатор:</span> Пітч, відповіді на питання, збір фідбеку.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 p-5 rounded-lg">
+                    <h4 class="font-bold text-purple-800 mb-3 text-sm">Додаткові ролі (для великих команд)</h4>
+                    <div class="grid md:grid-cols-3 gap-3 text-xs">
+                        <div class="bg-white p-3 rounded"><strong>Секретар:</strong> Порядок у файлах, фото-документація.</div>
+                        <div class="bg-white p-3 rounded"><strong>Контролер якості:</strong> Чек-листи етики, анонімізація, перевірка даних.</div>
+                        <div class="bg-white p-3 rounded"><strong>Таймкіпер:</strong> Таймінг сесій, готовність стенду, пітчів.</div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Block 3: Topics -->
+        <!-- Block 4: Topics -->
         <section id="topics" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-teal-500">
             <div class="p-8">
                 <h2 class="text-2xl font-bold text-teal-900 mb-6 flex items-center">
-                    <span class="bg-teal-100 text-teal-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">3</span>
-                    Вибір теми та Критерії
+                    <span class="bg-teal-100 text-teal-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">4</span>
+                    Вибір теми (Алгоритм + інструменти)
                 </h2>
 
-                <div class="mb-6 bg-teal-50 p-4 rounded-lg border border-teal-200">
-                    <h3 class="font-bold text-teal-800 mb-2">Формула оцінки ідеї (поріг 70/100 балів):</h3>
-                    <ul class="text-sm space-y-1 text-teal-900">
-                        <li class="flex justify-between"><span>1. Значущість для школи/громади</span> <span class="font-bold">30%</span></li>
-                        <li class="flex justify-between"><span>2. Досліджуваність (можна зібрати дані)</span> <span class="font-bold">25%</span></li>
-                        <li class="flex justify-between"><span>3. Здійсненність (час/ресурси)</span> <span class="font-bold">20%</span></li>
-                        <li class="flex justify-between"><span>4. Потенційний вплив/користь</span> <span class="font-bold">15%</span></li>
-                        <li class="flex justify-between"><span>5. Інтерес команди</span> <span class="font-bold">10%</span></li>
-                    </ul>
-                </div>
-
-                <div class="overflow-x-auto mb-8">
-                    <table class="w-full text-sm text-left text-gray-500">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
-                            <tr>
-                                <th class="px-6 py-3 text-red-600">Погано (Абстрактно)</th>
-                                <th class="px-6 py-3 text-green-600">Добре (Конкретно + Вимірювано)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="bg-white border-b">
-                                <td class="px-6 py-4">«Сміття»</td>
-                                <td class="px-6 py-4 font-medium text-gray-900">«Як зменшити відходи паперу на 30% у 4-Б за 4 тижні?»</td>
-                            </tr>
-                            <tr class="bg-white border-b">
-                                <td class="px-6 py-4">«Космос»</td>
-                                <td class="px-6 py-4 font-medium text-gray-900">«Які умови (температура/світло) впливають на проростання насіння?»</td>
-                            </tr>
-                             <tr class="bg-white border-b">
-                                <td class="px-6 py-4">«Здорове харчування»</td>
-                                <td class="px-6 py-4 font-medium text-gray-900">«Чи підвищує нарізка фруктів шматочками їх споживання учнями?»</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Quiz Block -->
-                <div class="bg-slate-800 text-white p-6 rounded-lg shadow-inner">
-                    <div class="flex items-start">
-                        <i class="fas fa-question-circle text-yellow-400 text-3xl mr-4 mt-1"></i>
-                        <div class="w-full">
-                            <h4 class="font-bold text-lg mb-2">Перевірка знань</h4>
-                            <p class="mb-4">Тема "Як покращити настрій у школі" отримала низький бал за критерієм "Досліджуваність". Чому?</p>
-                            <button onclick="toggleAnswer('ans3')" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded text-sm transition">Показати відповідь</button>
-                            <div id="ans3" class="hidden mt-4 bg-slate-700 p-4 rounded border-l-4 border-yellow-500">
-                                <p><strong>Важко виміряти.</strong> "Настрій" — суб'єктивний показник. Його важко перевести в точні цифри (шт, хв, %) для дітей. Краще брати те, що можна порахувати фізично (кількість сміття, шум у дБ, час виконання завдання).</p>
+                <div class="grid lg:grid-cols-2 gap-8 mb-8">
+                    <!-- Algorithm -->
+                    <div>
+                        <h3 class="font-bold text-teal-800 mb-4">Алгоритм вибору (7 кроків)</h3>
+                        <div class="step-counter space-y-3 text-sm">
+                            <div class="step-item flex items-center bg-teal-50 p-2 rounded"><span>Генеруйте 10–15 ідей разом з класом.</span></div>
+                            <div class="step-item flex items-center bg-teal-50 p-2 rounded"><span>Відсікайте «реферати» та занадто абстрактні теми.</span></div>
+                            <div class="step-item flex items-center bg-teal-50 p-2 rounded">
+                                <span>Сформулюйте питання: <em>«Як ми можемо... щоб... протягом... у ...?»</em></span>
                             </div>
+                            <div class="step-item flex items-center bg-white border border-teal-200 p-2 rounded">
+                                <div>
+                                    <span class="font-bold text-teal-700">Перевірте «Трикутник даних»:</span>
+                                    <ul class="list-disc list-inside text-xs text-gray-600 ml-1">
+                                        <li>Які первинні дані ми можемо зібрати?</li>
+                                        <li>Які вторинні джерела використаємо?</li>
+                                        <li>Як захистимо етику й безпеку?</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="step-item flex items-center bg-teal-50 p-2 rounded"><span>Оцініть ідеї за критеріями (див. нижче).</span></div>
+                            <div class="step-item flex items-center bg-teal-50 p-2 rounded"><span>Оберіть 1 основну + 1 резервну тему.</span></div>
+                            <div class="step-item flex items-center bg-teal-50 p-2 rounded"><span>Заповніть Паспорт проєкту (Canvas).</span></div>
                         </div>
                     </div>
+
+                    <!-- Examples -->
+                    <div>
+                        <h3 class="font-bold text-gray-700 mb-4">Трансформація теми</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-100 text-xs uppercase">
+                                    <tr>
+                                        <th class="px-3 py-2 text-red-600">Погано (Абстрактно)</th>
+                                        <th class="px-3 py-2 text-green-600">Добре (Конкретно)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-gray-600 text-xs">
+                                    <tr class="border-b">
+                                        <td class="px-3 py-2">«Сміття»</td>
+                                        <td class="px-3 py-2 font-medium text-gray-900">«Як зменшити відходи паперу на 30% у 4-Б за 4 тижні?»</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="px-3 py-2">«Космос»</td>
+                                        <td class="px-3 py-2 font-medium text-gray-900">«Які умови (світло/температура) впливають на проростання насіння (модель космічної теплиці)?»</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="px-3 py-2">«ЗСЖ»</td>
+                                        <td class="px-3 py-2 font-medium text-gray-900">«Чи підвищує нарізка фруктів шматочками їх споживання учнями 3–4 класів?»</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-3 py-2">«Гаджети»</td>
+                                        <td class="px-3 py-2 font-medium text-gray-900">«Як змінюється якість сну учнів, якщо за тиждень зменшити екранний час перед сном на 30 хв?»</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Criteria for Topic Selection -->
+                <div class="bg-teal-50 p-4 rounded-lg mb-6 border border-teal-100">
+                    <h3 class="font-bold text-teal-800 mb-3 text-sm flex items-center">
+                        <i class="fas fa-star-half-alt mr-2"></i>Критерії оцінювання теми (70+ балів зі 100)
+                    </h3>
+                    <div class="grid md:grid-cols-5 gap-3 text-xs">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold">Значущість</span>
+                                <span class="text-teal-700 font-bold">30%</span>
+                            </div>
+                            <p class="text-gray-600">Чи пов’язана тема з реальним життям дітей/школи?</p>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold">Дані</span>
+                                <span class="text-teal-700 font-bold">25%</span>
+                            </div>
+                            <p class="text-gray-600">Чи реально зібрати достатні первинні та вторинні дані?</p>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold">Здійсненність</span>
+                                <span class="text-teal-700 font-bold">20%</span>
+                            </div>
+                            <p class="text-gray-600">Чи встигає команда за часом, умовами, ресурсами?</p>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold">Вплив</span>
+                                <span class="text-teal-700 font-bold">15%</span>
+                            </div>
+                            <p class="text-gray-600">Чи є реальний корисний результат для користувачів?</p>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold">Інтерес</span>
+                                <span class="text-teal-700 font-bold">10%</span>
+                            </div>
+                            <p class="text-gray-600">Чи цікава тема самій команді?</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rubric + examples -->
+                <div class="grid lg:grid-cols-2 gap-6 text-xs mb-8">
+                    <div class="bg-gray-50 p-4 rounded border border-gray-200">
+                        <h3 class="font-bold text-gray-800 mb-2 text-sm">Рубрика 1–4 для теми</h3>
+                        <p class="mb-2 text-gray-600">Для кожного критерію поставте 1–4 бали:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-700">
+                            <li><strong>1 бал:</strong> дуже слабко (тема майже не підходить).</li>
+                            <li><strong>2 бали:</strong> є потенціал, але багато ризиків.</li>
+                            <li><strong>3 бали:</strong> добре, можна працювати з невеликими корекціями.</li>
+                            <li><strong>4 бали:</strong> відмінна тема, чіткі дані й вплив.</li>
+                        </ul>
+                        <p class="mt-3 text-gray-600">Сумарний бал <strong>70+ зі 100</strong> = тема підходить для виставки.</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded border border-gray-200">
+                        <h3 class="font-bold text-gray-800 mb-2 text-sm">Приклади тем для натхнення</h3>
+                        <ul class="list-disc list-inside space-y-1 text-gray-700">
+                            <li>Як змінюється шум у коридорі, якщо додати розмітку «тихих зон»?</li>
+                            <li>Чи зменшує окрема черга для молодших школярів час очікування в їдальні?</li>
+                            <li>Як змінюється кількість читачів, якщо зробити «книжковий виклик»?</li>
+                            <li>Як впливає нагадування в класі на кількість вимкнених світильників?</li>
+                            <li>Чи зменшує «фруктова тарілка» кількість залишків їжі?</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Measurable indicator memo -->
+                <div class="bg-amber-50 p-4 rounded-lg border border-amber-200 mb-6 text-xs">
+                    <h3 class="font-bold text-amber-800 mb-2 text-sm flex items-center">
+                        <i class="fas fa-ruler mr-2"></i>Мемо для команди: вимірюваний показник
+                    </h3>
+                    <p class="text-gray-700 mb-2">
+                        Кожен проєкт має мати <strong>один головний показник</strong>, який можна порахувати: «було → стало».
+                    </p>
+                    <p class="font-mono text-[11px] bg-white p-2 rounded border border-amber-100 mb-2">
+                        Ми хочемо <strong>збільшити/зменшити</strong> [показник] з [було] до [ціль] за [час] у [місці].
+                    </p>
+                    <p class="text-gray-700">Наприклад: «зменшити кількість паперових відходів з 3 повних кошиків на тиждень до 1 кошика за 4 тижні у 4-Б».</p>
+                </div>
+
+                <!-- Quick topic test -->
+                <div class="bg-white border-2 border-teal-200 p-4 rounded text-xs">
+                    <h3 class="font-bold text-teal-800 mb-2 text-sm">Швидкий тест теми (5 питань Так/Ні)</h3>
+                    <p class="text-gray-700 mb-2">Якщо ви відповіли «Так» хоча б на 4 із 5 – тема підходить.</p>
+                    <ul class="list-decimal list-inside space-y-1 text-gray-700">
+                        <li>Чи можемо ми зібрати дані власноруч, у школі/дома?</li>
+                        <li>Чи безпечна тема (без небезпечних місць/речовин/питань)?</li>
+                        <li>Чи є в темі конкретний показник, який можна поміряти?</li>
+                        <li>Чи цікава ця тема більшості команди?</li>
+                        <li>Чи встигаємо ми виконати дослідження за 6–8 тижнів?</li>
+                    </ul>
                 </div>
             </div>
         </section>
 
-        <!-- Block 3.5: Project Canvas -->
+        <!-- Block 5: Project Canvas -->
         <section id="canvas" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-emerald-600">
             <div class="p-8">
                 <h2 class="text-2xl font-bold text-emerald-900 mb-6 flex items-center">
-                    <span class="bg-emerald-100 text-emerald-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">4</span>
+                    <span class="bg-emerald-100 text-emerald-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">5</span>
                     Паспорт проєкту (Project Canvas)
                 </h2>
 
-                <div class="bg-emerald-50 p-4 rounded-lg mb-6 border-l-4 border-emerald-500">
-                    <h3 class="font-bold text-emerald-800 mb-2"><i class="fas fa-lightbulb mr-2"></i>Що це таке?</h3>
-                    <p class="text-sm text-emerald-900">Це <strong>односторінковий робочий паспорт</strong>, який фіксує проблему, цілі, користувача, план і критерії успіху так, щоб команда й ментор однаково розуміли «що робимо і як доведемо, що ми це зробили».</p>
+                <div class="bg-emerald-50 p-4 rounded-lg mb-6 border-l-4 border-emerald-500 text-sm">
+                    <p>Це документ на 1 сторінку, який оновлюється після кожного чек-іну. Він обов'язково містить 13 пунктів:</p>
                 </div>
 
-                <div class="grid md:grid-cols-2 gap-6 mb-6">
-                    <div class="border border-emerald-200 rounded-lg p-5">
-                        <h4 class="font-bold text-emerald-800 mb-3">Навіщо потрібен?</h4>
-                        <ul class="space-y-2 text-sm text-gray-700">
-                            <li><i class="fas fa-rocket text-emerald-500 mr-2"></i>Швидкий запуск без громіздкої заявки</li>
-                            <li><i class="fas fa-users text-emerald-500 mr-2"></i>Спільне бачення і межі проєкту</li>
-                            <li><i class="fas fa-tasks text-emerald-500 mr-2"></i>Контрольні точки для менторів</li>
-                        </ul>
-                    </div>
-                    <div class="border border-emerald-200 rounded-lg p-5">
-                        <h4 class="font-bold text-emerald-800 mb-3">Правила заповнення</h4>
-                        <ul class="space-y-2 text-sm text-gray-700">
-                            <li><i class="fas fa-file-alt text-emerald-500 mr-2"></i>1 сторінка, короткі фрази</li>
-                            <li><i class="fas fa-check-circle text-emerald-500 mr-2"></i>Тільки те, що можна перевірити</li>
-                            <li><i class="fas fa-sync text-emerald-500 mr-2"></i>Оновлюється після кожного чекіну</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 p-6 rounded-lg border-2 border-emerald-300">
-                    <h4 class="font-bold text-lg mb-4 text-center text-emerald-900">Що містить паспорт? (12 обов'язкових полів)</h4>
-                    <div class="grid md:grid-cols-2 gap-3 text-sm">
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">1</span>
-                            <span><strong>Назва проєкту</strong></span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">2</span>
-                            <span><strong>Проблема</strong> (чому це важливо)</span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">3</span>
-                            <span><strong>Рушійне запитання</strong> (що саме досліджуємо)</span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">4</span>
-                            <span><strong>Користувач/аудиторія</strong> (для кого цінність)</span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">5</span>
-                            <span><strong>Мета та показники успіху</strong></span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">6</span>
-                            <span><strong>Гіпотеза/очікуваний результат</strong></span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">7</span>
-                            <span><strong>Методи й дані</strong> (опитування/експеримент)</span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">8</span>
-                            <span><strong>Продукт</strong> (що показуємо на виставці)</span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">9</span>
-                            <span><strong>Ролі в команді</strong></span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">10</span>
-                            <span><strong>Ресурси та обмеження</strong> (час/матеріали)</span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">11</span>
-                            <span><strong>Ризики та план B</strong></span>
-                        </div>
-                        <div class="flex items-start bg-white p-3 rounded">
-                            <span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded mr-2 text-xs">12</span>
-                            <span><strong>Етика/доброчесність</strong> (згоди, джерела)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quiz Block -->
-                <div class="bg-slate-800 text-white p-6 rounded-lg shadow-inner mt-8">
-                    <div class="flex items-start">
-                        <i class="fas fa-question-circle text-yellow-400 text-3xl mr-4 mt-1"></i>
-                        <div class="w-full">
-                            <h4 class="font-bold text-lg mb-2">Перевірка знань</h4>
-                            <p class="mb-4">Чому паспорт проєкту потрібно оновлювати після кожного чекіну, а не заповнити один раз на початку?</p>
-                            <button onclick="toggleAnswer('ans_canvas')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-sm transition">Показати відповідь</button>
-                            <div id="ans_canvas" class="hidden mt-4 bg-slate-700 p-4 rounded border-l-4 border-yellow-500">
-                                <p><strong>Бо проєкт — це живий процес.</strong> Під час дослідження з'являються нові дані, змінюються гіпотези, виникають ризики. Оновлений паспорт показує реальний прогрес і допомагає вчасно скоригувати план, замість того щоб у кінці виявити, що пішли не туди.</p>
+                <div class="bg-white border-2 border-emerald-200 rounded-lg p-6 text-sm">
+                    <div class="grid md:grid-cols-2 gap-x-8 gap-y-3">
+                        <div class="border-b pb-1">1. Назва проєкту</div>
+                        <div class="border-b pb-1">2. Проблема (1–2 речення)</div>
+                        <div class="border-b pb-1">3. Рушійне запитання</div>
+                        <div class="border-b pb-1">4. Користувач/аудиторія</div>
+                        <div class="border-b pb-1">5. Мета та показники успіху (%, шт)</div>
+                        <div class="border-b pb-1">6. Гіпотеза</div>
+                        <div class="border-b pb-1">7. Методи й дані (що/де/скільки)</div>
+                        <div class="border-b pb-1">8. Продукт на виставку</div>
+                        <div class="border-b pb-1">9. Ролі в команді</div>
+                        <div class="border-b pb-1">10. Ресурси та обмеження</div>
+                        <div class="border-b pb-1">11. Ризики та план «В»</div>
+                        <div class="bg-yellow-50 p-2 rounded border border-yellow-200 col-span-1 md:col-span-2">
+                            <span class="font-bold block mb-1">12. Таймлайн і контрольні точки (дати)</span>
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>◻️ Методи дослідження</div>
+                                <div>◻️ Збір даних</div>
+                                <div>◻️ Прототип продукту</div>
+                                <div>◻️ Передпоказ постера</div>
                             </div>
+                        </div>
+                        <div class="col-span-1 md:col-span-2 pt-2 text-xs text-gray-500">
+                            <strong>13. Етика/доброчесність:</strong> Згоди батьків, анонімізація, список джерел.
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Block 3.5: Timeline -->
+        <!-- Block 6: Timeline (Class view) -->
         <section id="timeline" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-gray-600">
             <div class="p-8">
                 <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                    <span class="bg-gray-200 text-gray-800 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg"><i class="far fa-calendar-alt"></i></span>
-                    Таймлайн проєкту (6-8 тижнів)
+                    <span class="bg-gray-200 text-gray-800 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">
+                        <i class="far fa-calendar-alt"></i>
+                    </span>
+                    Таймлайн для класу (6–8 тижнів)
                 </h2>
                 <div class="relative border-l-2 border-gray-200 ml-4 space-y-6">
                     <div class="pl-6 relative">
                         <span class="absolute -left-[9px] bg-gray-400 w-4 h-4 rounded-full mt-1"></span>
-                        <h4 class="font-bold">Тиждень 1: Ініціація</h4>
-                        <p class="text-sm text-gray-600">Вибір проблеми, формування команд, <strong>Project Canvas</strong> (паспорт проєкту). <strong>Згода батьків!</strong></p>
-                        <div class="mt-2 bg-blue-50 p-2 rounded text-xs">
-                            <strong>Ключовий документ:</strong> Заповніть паспорт проєкту — це ваша "дорожня карта" на всі 8 тижнів.
-                        </div>
+                        <h4 class="font-bold text-sm">Тиждень 1: Ініціація</h4>
+                        <p class="text-xs text-gray-600">Проблема, команди, Canvas. <strong>Згода батьків!</strong></p>
                     </div>
                     <div class="pl-6 relative">
                         <span class="absolute -left-[9px] bg-gray-400 w-4 h-4 rounded-full mt-1"></span>
-                        <h4 class="font-bold">Тиждень 2: Проєктування</h4>
-                        <p class="text-sm text-gray-600">Створення інструментів (анкет, бланків). Пілотне тестування.</p>
+                        <h4 class="font-bold text-sm">Тиждень 2: Проєктування</h4>
+                        <p class="text-xs text-gray-600">Створення анкет/бланків. Пілотний тест.</p>
                     </div>
                     <div class="pl-6 relative">
                         <span class="absolute -left-[9px] bg-blue-500 w-4 h-4 rounded-full mt-1 animate-pulse"></span>
-                        <h4 class="font-bold text-blue-800">Тиждень 3-4: Збір даних</h4>
-                        <p class="text-sm text-gray-600">Робота "в полі". Заповнення журналів. 3+ повторів експериментів. <strong>Зберігайте "сирі дані"!</strong></p>
+                        <h4 class="font-bold text-sm text-blue-800">Тиждень 3–4: Збір даних</h4>
+                        <p class="text-xs text-gray-600">Робота «в полі». Журнали. 3+ повторів. <strong>Збереження «сирих даних»</strong>.</p>
                     </div>
                     <div class="pl-6 relative">
                         <span class="absolute -left-[9px] bg-gray-400 w-4 h-4 rounded-full mt-1"></span>
-                        <h4 class="font-bold">Тиждень 5-6: Аналіз та Прототип</h4>
-                        <p class="text-sm text-gray-600">Побудова графіків. Створення рішення (продукту). Тест на користувачах.</p>
+                        <h4 class="font-bold text-sm">Тиждень 5–6: Аналіз та прототип</h4>
+                        <p class="text-xs text-gray-600">Графіки. Прототип рішення. Тест на користувачах.</p>
                     </div>
                     <div class="pl-6 relative">
                         <span class="absolute -left-[9px] bg-green-500 w-4 h-4 rounded-full mt-1"></span>
-                        <h4 class="font-bold text-green-800">Тиждень 7-8: Фінал</h4>
-                        <p class="text-sm text-gray-600">Друк постера. Тренування пітчу. Виставка.</p>
+                        <h4 class="font-bold text-sm text-green-800">Тиждень 7–8: Фінал</h4>
+                        <p class="text-xs text-gray-600">Постер. Пітч. Виставка. Рефлексія.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Block 4: Data Methods -->
+        <!-- Block 7: Methods -->
         <section id="methods" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-orange-500">
             <div class="p-8">
                 <h2 class="text-2xl font-bold text-orange-900 mb-6 flex items-center">
-                    <span class="bg-orange-100 text-orange-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">5</span>
+                    <span class="bg-orange-100 text-orange-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">7</span>
                     Методи збору даних
                 </h2>
                 
                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                    <h3 class="font-bold text-yellow-800 mb-2"><i class="fas fa-database mr-2"></i>Золоте правило: Зберігайте "сирі дані"!</h3>
-                    <p class="text-sm text-yellow-900 mb-3"><strong>Сирі дані</strong> — це первинні, не оброблені записи вимірювань або відповідей, зафіксовані під час дослідження «як є» (без підрахунків, середніх, відсотків).</p>
-                    <div class="grid md:grid-cols-2 gap-3 text-xs">
-                        <div class="bg-white p-3 rounded">
-                            <strong class="text-green-700">✓ Правильно:</strong>
-                            <ul class="mt-1 space-y-1 text-gray-700">
-                                <li>• Температура: 18.2°C, 18.5°C, 19.0°C</li>
-                                <li>• Час читання: 187 с, 201 с, 195 с</li>
-                                <li>• Відповіді: Так, Ні, Так, Інколи...</li>
-                            </ul>
-                        </div>
-                        <div class="bg-white p-3 rounded">
-                            <strong class="text-red-700">✗ Неправильно:</strong>
-                            <ul class="mt-1 space-y-1 text-gray-700">
-                                <li>• "Середня температура 18.6°C"</li>
-                                <li>• "Приблизно 3 хвилини"</li>
-                                <li>• "Більшість відповіли Так"</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <p class="text-sm text-yellow-900 mt-3"><strong>Чому це критично?</strong> Сирі дані — єдиний доказ академічної доброчесності. Без них проєкт не зараховується!</p>
+                    <h3 class="font-bold text-yellow-800 mb-1 text-sm"><i class="fas fa-database mr-2"></i>Золоте правило: зберігайте «сирі дані»!</h3>
+                    <p class="text-xs text-yellow-900">Сирі дані — це чернетки записів «як є» (щоденники, таблиці, анкети). Це головний доказ академічної доброчесності.</p>
                 </div>
 
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                    <div class="bg-white border rounded p-4 shadow-sm">
-                        <div class="text-orange-500 text-2xl mb-2"><i class="fas fa-eye"></i> Спостереження</div>
-                        <p class="text-xs text-gray-600">Мінімум <strong>3 окремі сесії</strong>. Фіксація за чек-листом.</p>
+                <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6 text-sm">
+                    <div class="bg-white border rounded p-3 text-center">
+                        <div class="text-orange-500 text-xl mb-1"><i class="fas fa-eye"></i></div>
+                        <strong class="block mb-1">Спостереження</strong>
+                        <span class="text-xs text-gray-500">≥3 сесії. Чек-лист, одна чітка поведінка.</span>
                     </div>
-                    <div class="bg-white border rounded p-4 shadow-sm">
-                        <div class="text-orange-500 text-2xl mb-2"><i class="fas fa-flask"></i> Експеримент</div>
-                        <p class="text-xs text-gray-600">Мінімум <strong>3-5 повторів</strong> на кожну умову. Змінюємо лише 1 змінну.</p>
+                    <div class="bg-white border rounded p-3 text-center">
+                        <div class="text-orange-500 text-xl mb-1"><i class="fas fa-flask"></i></div>
+                        <strong class="block mb-1">Експеримент</strong>
+                        <span class="text-xs text-gray-500">≥3 повтори. Змінюємо тільки 1 змінну.</span>
                     </div>
-                    <div class="bg-white border rounded p-4 shadow-sm">
-                        <div class="text-orange-500 text-2xl mb-2"><i class="fas fa-poll"></i> Опитування</div>
-                        <p class="text-xs text-gray-600">Мінімум <strong>20 респондентів</strong>. Анонімно. Без чутливих питань.</p>
+                    <div class="bg-white border rounded p-3 text-center">
+                        <div class="text-orange-500 text-xl mb-1"><i class="fas fa-poll"></i></div>
+                        <strong class="block mb-1">Опитування</strong>
+                        <span class="text-xs text-gray-500">≥20 анкет. Анонімно, прості запитання.</span>
                     </div>
-                     <div class="bg-white border rounded p-4 shadow-sm">
-                        <div class="text-orange-500 text-2xl mb-2"><i class="fas fa-book-open"></i> Вторинні дані</div>
-                        <p class="text-xs text-gray-600">Мінімум <strong>2-3 джерела</strong> (для порівняння ваших даних з нормами).</p>
+                    <div class="bg-white border rounded p-3 text-center">
+                        <div class="text-orange-500 text-xl mb-1"><i class="fas fa-balance-scale"></i></div>
+                        <strong class="block mb-1">A/B тест</strong>
+                        <span class="text-xs text-gray-500">≥25 спостережень. Порівнюємо «було/стало».</span>
                     </div>
-                     <div class="bg-white border rounded p-4 shadow-sm">
-                        <div class="text-orange-500 text-2xl mb-2"><i class="fas fa-balance-scale"></i> A/B Тестування</div>
-                        <p class="text-xs text-gray-600">Порівняння двох варіантів (25-30 спостережень).</p>
+                    <div class="bg-white border rounded p-3 text-center">
+                        <div class="text-orange-500 text-xl mb-1"><i class="fas fa-book-open"></i></div>
+                        <strong class="block mb-1">Вторинні дані</strong>
+                        <span class="text-xs text-gray-500">Книги, звіти, відкриті статистичні дані.</span>
+                    </div>
+                    <div class="bg-white border rounded p-3 text-center">
+                        <div class="text-orange-500 text-xl mb-1"><i class="fas fa-map-marked-alt"></i></div>
+                        <strong class="block mb-1">Картування</strong>
+                        <span class="text-xs text-gray-500">Плани, схеми, позначення «гарячих точок».</span>
+                    </div>
+                    <div class="bg-white border rounded p-3 text-center">
+                        <div class="text-orange-500 text-xl mb-1"><i class="fas fa-stopwatch"></i></div>
+                        <strong class="block mb-1">Хронометраж</strong>
+                        <span class="text-xs text-gray-500">Замір часу (черги, переходи, завдання).</span>
+                    </div>
+                    <div class="bg-white border rounded p-3 text-center">
+                        <div class="text-orange-500 text-xl mb-1"><i class="fas fa-clipboard"></i></div>
+                        <strong class="block mb-1">Щоденники/логи</strong>
+                        <span class="text-xs text-gray-500">Короткі щоденні записи учнів/користувачів.</span>
                     </div>
                 </div>
 
-                <div class="bg-gray-50 p-6 rounded-lg border-2 border-orange-300 mb-8">
-                    <h3 class="font-bold text-orange-800 mb-4 text-center"><i class="fas fa-table mr-2"></i>Шаблон таблиці збору даних (обов'язковий!)</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs border-collapse">
-                            <thead class="bg-orange-100">
-                                <tr>
-                                    <th class="border border-orange-300 px-3 py-2 text-left">Дата</th>
-                                    <th class="border border-orange-300 px-3 py-2 text-left">Час</th>
-                                    <th class="border border-orange-300 px-3 py-2 text-left">Умова/Варіант</th>
-                                    <th class="border border-orange-300 px-3 py-2 text-left">Показник (одиниці)</th>
-                                    <th class="border border-orange-300 px-3 py-2 text-left">Коментар</th>
-                                    <th class="border border-orange-300 px-3 py-2 text-left">Хто записав</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white">
-                                <tr>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">01.02.2025</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">10:15</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">Варіант А</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">18.2°C</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">Сонячна сторона</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">Олена</td>
-                                </tr>
-                                <tr class="bg-gray-50">
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">01.02.2025</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">10:30</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">Варіант Б</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">15.8°C</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">Тіньова сторона</td>
-                                    <td class="border border-gray-300 px-3 py-2 text-gray-500">Максим</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div class="bg-gray-50 p-4 rounded border-2 border-orange-300 mb-6">
+                    <h4 class="font-bold text-orange-800 mb-2 text-sm text-center">Обов'язкові поля в таблиці даних</h4>
+                    <div class="flex flex-wrap justify-center gap-2 text-xs font-mono">
+                        <span class="bg-white px-2 py-1 border rounded">Дата</span>
+                        <span class="bg-white px-2 py-1 border rounded">Час</span>
+                        <span class="bg-white px-2 py-1 border rounded">Умова</span>
+                        <span class="bg-white px-2 py-1 border rounded border-orange-400 font-bold">Показник</span>
+                        <span class="bg-white px-2 py-1 border rounded">Коментар</span>
+                        <span class="bg-white px-2 py-1 border rounded">Автор запису</span>
                     </div>
-                    <p class="text-xs text-gray-600 mt-3"><strong>Важливо:</strong> Кожен рядок = одне спостереження. Не видаляйте "незручні" значення, позначайте виправлення в коментарях!</p>
                 </div>
 
-                <!-- Quiz Block -->
-                <div class="bg-slate-800 text-white p-6 rounded-lg shadow-inner">
-                    <div class="flex items-start">
-                        <i class="fas fa-question-circle text-yellow-400 text-3xl mr-4 mt-1"></i>
-                        <div class="w-full">
-                            <h4 class="font-bold text-lg mb-2">Перевірка знань</h4>
-                            <p class="mb-4">Учень поміряв температуру 1 раз і зробив висновок. Яку помилку допущено?</p>
-                            <button onclick="toggleAnswer('ans4')" class="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded text-sm transition">Показати відповідь</button>
-                            <div id="ans4" class="hidden mt-4 bg-slate-700 p-4 rounded border-l-4 border-yellow-500">
-                                <p><strong>Відсутність повторюваності.</strong> Один замір може бути випадковим. Науковий метод вимагає мінімум 3 повтори для підтвердження результату.</p>
-                            </div>
-                        </div>
-                    </div>
+                <div class="bg-white border-2 border-lime-300 p-4 rounded text-xs">
+                    <h4 class="font-bold text-lime-800 mb-2 text-sm flex items-center">
+                        <i class="fas fa-check-double mr-2"></i>Чек-лист якості даних
+                    </h4>
+                    <ul class="list-disc list-inside space-y-1 text-gray-700">
+                        <li>Маємо достатню кількість записів (не менше, ніж вимоги для методу).</li>
+                        <li>Умови збору даних описані (де/коли/за яких правил).</li>
+                        <li>Є «сирі дані» (таблиці, записи, фото анкет).</li>
+                        <li>Не змінюємо дані «щоб було красиво» – тільки пояснюємо відхилення.</li>
+                        <li>Є хоча б один графік або діаграма з підписами осей.</li>
+                        <li>Принаймні 10% записів вибірково перевірені ментором.</li>
+                    </ul>
                 </div>
             </div>
         </section>
 
-        <!-- Block 5.5: Ethics and Safety -->
+        <!-- Block 8: Ethics -->
         <section id="ethics" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-red-500">
             <div class="p-8">
                 <h2 class="text-2xl font-bold text-red-900 mb-6 flex items-center">
-                    <span class="bg-red-100 text-red-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">6</span>
-                    Етика та Безпека
+                    <span class="bg-red-100 text-red-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">8</span>
+                    Етика та безпека
                 </h2>
-
-                <div class="bg-red-50 p-4 rounded-lg border-l-4 border-red-500 mb-6">
-                    <h3 class="font-bold text-red-800 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Категорично заборонено</h3>
-                    <ul class="text-sm text-red-900 space-y-1">
-                        <li>• Небезпечні речовини (хімікати, вогонь без нагляду, гострі предмети)</li>
-                        <li>• Небезпечні місця (дах, підвал, дорога з рухом)</li>
-                        <li>• Фото/відео без згоди батьків</li>
-                        <li>• Чутливі питання (сімейні проблеми, здоров'я, фінанси)</li>
-                        <li>• Публікація персональних даних (ПІБ, адреси, телефони)</li>
-                    </ul>
-                </div>
-
                 <div class="grid md:grid-cols-2 gap-6 mb-6">
-                    <div class="border border-red-200 rounded-lg p-5">
-                        <h4 class="font-bold text-red-800 mb-3"><i class="fas fa-file-signature mr-2"></i>Згода батьків (обов'язково!)</h4>
-                        <div class="text-sm text-gray-700 space-y-2">
-                            <p><strong>Коли потрібна:</strong></p>
-                            <ul class="list-disc list-inside ml-2">
-                                <li>Фото/відео учня</li>
-                                <li>Опитування дітей</li>
-                                <li>Будь-які експерименти з участю дітей</li>
-                            </ul>
-                            <p class="mt-3"><strong>Шаблон згоди:</strong> "Я, ______ (ПІБ батька/опікуна), даю згоду на участь мого сина/дочки ______ у дослідницькому проєкті «______». Я ознайомлений з метою дослідження і підтверджую, що участь добровільна."</p>
-                        </div>
+                    <div class="bg-red-50 p-4 rounded border border-red-100">
+                        <h4 class="font-bold text-red-800 mb-2 text-sm"><i class="fas fa-ban mr-2"></i>ЗАБОРОНЕНО</h4>
+                        <ul class="text-xs text-red-900 list-disc list-inside space-y-1">
+                            <li>Небезпечні речовини та місця (дах, підвал, будмайданчики).</li>
+                            <li>Фото/відео дітей без письмової згоди батьків.</li>
+                            <li>Чутливі питання (сім'я, гроші, здоров'я, релігія).</li>
+                            <li>Публікація імен (ПІБ) у звітах для публічних матеріалів.</li>
+                        </ul>
                     </div>
-
-                    <div class="border border-blue-200 rounded-lg p-5">
-                        <h4 class="font-bold text-blue-800 mb-3"><i class="fas fa-user-shield mr-2"></i>Анонімізація даних</h4>
-                        <div class="text-sm text-gray-700 space-y-2">
-                            <p><strong>Правила:</strong></p>
-                            <ul class="list-disc list-inside ml-2">
-                                <li>Замість імен — номери (Респондент №1, №2...)</li>
-                                <li>Обличчя на фото — замилювати/пікселізувати</li>
-                                <li>У звітах — тільки узагальнені дані (%, середнє)</li>
-                                <li>Оригінальні анкети — зберігати у вчителя</li>
-                            </ul>
-                            <div class="mt-3 bg-blue-50 p-2 rounded text-xs">
-                                <strong>Приклад:</strong> Замість "Петро набрав 3 бали" пишіть "Учень №5 набрав 3 бали" або "Середній бал: 3.4"
-                            </div>
-                        </div>
+                    <div class="bg-green-50 p-4 rounded border border-green-100">
+                        <h4 class="font-bold text-green-800 mb-2 text-sm"><i class="fas fa-check mr-2"></i>ОБОВ'ЯЗКОВО</h4>
+                        <ul class="text-xs text-green-900 list-disc list-inside space-y-1">
+                            <li>Збір письмових згод батьків.</li>
+                            <li>Анонімізація (коди: Учень №1, №2 тощо).</li>
+                            <li>Інструктаж з безпеки перед дослідами.</li>
+                            <li>Знищення або анонімізація персональних даних після завершення проєкту.</li>
+                        </ul>
                     </div>
                 </div>
-
-                <div class="bg-green-50 p-4 rounded-lg border border-green-300">
-                    <h4 class="font-bold text-green-800 mb-2"><i class="fas fa-clipboard-check mr-2"></i>Чек-лист етики (перед стартом проєкту)</h4>
-                    <div class="grid md:grid-cols-2 gap-2 text-sm">
-                        <label class="flex items-start">
-                            <input type="checkbox" class="mt-1 mr-2">
-                            <span>Згоди батьків зібрані та збережені</span>
-                        </label>
-                        <label class="flex items-start">
-                            <input type="checkbox" class="mt-1 mr-2">
-                            <span>Опитування без чутливих питань</span>
-                        </label>
-                        <label class="flex items-start">
-                            <input type="checkbox" class="mt-1 mr-2">
-                            <span>Учасники знають, що участь добровільна</span>
-                        </label>
-                        <label class="flex items-start">
-                            <input type="checkbox" class="mt-1 mr-2">
-                            <span>Відповіді анонімні (без ПІБ)</span>
-                        </label>
-                        <label class="flex items-start">
-                            <input type="checkbox" class="mt-1 mr-2">
-                            <span>Жодних небезпечних матеріалів/місць</span>
-                        </label>
-                        <label class="flex items-start">
-                            <input type="checkbox" class="mt-1 mr-2">
-                            <span>План дій у разі інциденту готовий</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Quiz Block -->
-                <div class="bg-slate-800 text-white p-6 rounded-lg shadow-inner mt-8">
-                    <div class="flex items-start">
-                        <i class="fas fa-question-circle text-yellow-400 text-3xl mr-4 mt-1"></i>
-                        <div class="w-full">
-                            <h4 class="font-bold text-lg mb-2">Перевірка знань</h4>
-                            <p class="mb-4">Команда хоче опитати дітей про їхні сімейні стосунки для проєкту "Як стрес впливає на навчання". Чи можна це робити?</p>
-                            <button onclick="toggleAnswer('ans_ethics')" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded text-sm transition">Показати відповідь</button>
-                            <div id="ans_ethics" class="hidden mt-4 bg-slate-700 p-4 rounded border-l-4 border-yellow-500">
-                                <p><strong>Ні, категорично заборонено!</strong> Сімейні стосунки — це чутлива тема. Діти молодшого віку можуть не розуміти наслідків відповідей. Потрібно обрати інший, безпечний показник стресу (наприклад, кількість домашніх завдань, час на гаджети, якість сну).</p>
-                            </div>
-                        </div>
+                
+                <div class="bg-gray-100 p-4 rounded">
+                    <h4 class="font-bold text-sm mb-2">Чек-лист етики (перед стартом):</h4>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Згоди зібрані</label>
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Анкета/сценарій безпечні</label>
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Участь добровільна</label>
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Є план дій при НС</label>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Block 5: Poster & Pitch -->
+        <!-- Block 9: Poster & Pitch -->
         <section id="poster" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-pink-500">
             <div class="p-8">
                 <h2 class="text-2xl font-bold text-pink-900 mb-6 flex items-center">
-                    <span class="bg-pink-100 text-pink-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">7</span>
-                    Постер та Пітч
+                    <span class="bg-pink-100 text-pink-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">9</span>
+                    Постер та пітч
                 </h2>
-
-                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                <div class="grid md:grid-cols-2 gap-8 mb-6">
                     <div>
-                        <h3 class="font-bold text-lg mb-4 text-gray-800">Вимоги до Постера (А1/А2)</h3>
-                        <div class="bg-pink-50 p-4 rounded text-sm text-gray-700 space-y-2">
-                            <p><strong><i class="fas fa-text-height"></i> Шрифти:</strong></p>
-                            <ul class="list-disc list-inside ml-2">
+                        <h3 class="font-bold text-lg mb-3">Вимоги до постера (А1/А2)</h3>
+                        <div class="bg-pink-50 p-4 rounded text-sm space-y-2">
+                            <p><strong><i class="fas fa-text-height"></i> Шрифти (читабельні з 1 м):</strong></p>
+                            <ul class="list-disc list-inside ml-2 text-xs">
                                 <li>Заголовок: ≥ <strong>72 pt</strong></li>
-                                <li>Секції: 36-48 pt</li>
-                                <li>Основний текст: <strong>24-28 pt</strong></li>
-                                <li><em>Текст має читатися з 1-2 метрів!</em></li>
+                                <li>Основний текст: <strong>24–28 pt</strong></li>
+                                <li>Підписи до графіків/фото: 20–22 pt</li>
                             </ul>
-                            <p class="mt-2"><strong>Структура:</strong> Проблема → Методи → Дані (графіки) → Висновки → Джерела + QR.</p>
+                            <p class="mt-2 font-bold">Базова структура:</p>
+                            <p class="text-xs">Проблема → Питання → Метод → Дані (графік/таблиця) → Висновки → Обмеження → «Що далі?» → Джерела + QR.</p>
                         </div>
                     </div>
-
                     <div>
-                        <h3 class="font-bold text-lg mb-4 text-gray-800">Структура Пітчу (3 хв)</h3>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex items-center justify-between bg-gray-100 p-2 rounded">
-                                <span>1. Чому це важливо (Проблема)</span>
-                                <span class="bg-pink-200 px-2 rounded text-xs">30 с</span>
-                            </div>
-                            <div class="flex items-center justify-between bg-gray-100 p-2 rounded">
-                                <span>2. Що зробили (Методи)</span>
-                                <span class="bg-pink-200 px-2 rounded text-xs">60 с</span>
-                            </div>
-                            <div class="flex items-center justify-between bg-gray-100 p-2 rounded">
-                                <span>3. Що дізналися (Висновки)</span>
-                                <span class="bg-pink-200 px-2 rounded text-xs">45 с</span>
-                            </div>
-                            <div class="flex items-center justify-between bg-gray-100 p-2 rounded">
-                                <span>4. Вплив / Що далі</span>
-                                <span class="bg-pink-200 px-2 rounded text-xs">45 с</span>
-                            </div>
+                        <h3 class="font-bold text-lg mb-3">Структура пітчу (3 хв)</h3>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between bg-gray-100 p-2 rounded"><span>1. Чому це важливо (проблема)</span> <span class="bg-pink-200 px-2 rounded">30с</span></div>
+                            <div class="flex justify-between bg-gray-100 p-2 rounded"><span>2. Що зробили (методи та дані)</span> <span class="bg-pink-200 px-2 rounded">60с</span></div>
+                            <div class="flex justify-between bg-gray-100 p-2 rounded"><span>3. Що дізналися (висновки)</span> <span class="bg-pink-200 px-2 rounded">45с</span></div>
+                            <div class="flex justify-between bg-gray-100 p-2 rounded"><span>4. Що далі (вплив/продовження)</span> <span class="bg-pink-200 px-2 rounded">45с</span></div>
+                            <div class="flex justify-between bg-gray-100 p-2 rounded"><span>5. Питання від гостей/журі</span> <span class="bg-pink-200 px-2 rounded">30с</span></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-pink-50 p-6 rounded-lg border-2 border-pink-400 mb-8">
-                    <h3 class="font-bold text-pink-900 mb-4 text-center"><i class="fas fa-clipboard-check mr-2"></i>Чек-лист перед друком постера</h3>
-                    <div class="grid md:grid-cols-2 gap-3 text-sm">
-                        <div class="space-y-2">
-                            <label class="flex items-start">
-                                <input type="checkbox" class="mt-1 mr-2">
-                                <span>Розмір шрифта коректний (заголовок ≥72pt, текст 24-28pt)</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" class="mt-1 mr-2">
-                                <span>Усі цифри звірені з таблицями; є одиниці виміру</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" class="mt-1 mr-2">
-                                <span>Графіки мають назви, підписи осей і джерело</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" class="mt-1 mr-2">
-                                <span>Є розділ "Обмеження дослідження"</span>
-                            </label>
-                        </div>
-                        <div class="space-y-2">
-                            <label class="flex items-start">
-                                <input type="checkbox" class="mt-1 mr-2">
-                                <span>Усі зображення високої якості (не розмиті)</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" class="mt-1 mr-2">
-                                <span>QR-код веде на актуальний файл (перевірено!)</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" class="mt-1 mr-2">
-                                <span>Файл PDF з вбудованими шрифтами</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" class="mt-1 mr-2">
-                                <span>Назва файлу: UGS_Exhibition2025_Class_Team_Title_v1.pdf</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quiz Block -->
-                <div class="bg-slate-800 text-white p-6 rounded-lg shadow-inner">
-                    <div class="flex items-start">
-                        <i class="fas fa-question-circle text-yellow-400 text-3xl mr-4 mt-1"></i>
-                        <div class="w-full">
-                            <h4 class="font-bold text-lg mb-2">Перевірка знань</h4>
-                            <p class="mb-4">Учень написав текст на постері 12-м шрифтом, щоб "все помістилося". Які наслідки?</p>
-                            <button onclick="toggleAnswer('ans5')" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded text-sm transition">Показати відповідь</button>
-                            <div id="ans5" class="hidden mt-4 bg-slate-700 p-4 rounded border-l-4 border-yellow-500">
-                                <p><strong>Зниження балу за презентацію.</strong> Постер — це візуальна комунікація. Якщо журі не може прочитати текст з 1 метра, це помилка дизайну. Треба скорочувати текст, а не зменшувати шрифт.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Block 6: Assessment -->
-        <section id="assessment" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-indigo-600">
-            <div class="p-8">
-                <h2 class="text-2xl font-bold text-indigo-900 mb-6 flex items-center">
-                    <span class="bg-indigo-100 text-indigo-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">8</span>
-                    Оцінювання (100%)
-                </h2>
-
-                <div class="space-y-4 mb-8">
-                    <div class="flex items-center">
-                        <div class="w-16 font-bold text-indigo-600">30%</div>
-                        <div class="flex-1">
-                            <div class="h-4 bg-gray-200 rounded overflow-hidden">
-                                <div class="h-full bg-indigo-600" style="width: 30%"></div>
-                            </div>
-                            <div class="text-xs text-gray-500">Процес і журнал (наявність сирих даних, регулярність)</div>
-                        </div>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-16 font-bold text-blue-500">20%</div>
-                        <div class="flex-1">
-                            <div class="h-4 bg-gray-200 rounded overflow-hidden">
-                                <div class="h-full bg-blue-500" style="width: 20%"></div>
-                            </div>
-                            <div class="text-xs text-gray-500">Якість даних і методів (триангуляція, повторюваність)</div>
-                        </div>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-16 font-bold text-teal-500">20%</div>
-                        <div class="flex-1">
-                            <div class="h-4 bg-gray-200 rounded overflow-hidden">
-                                <div class="h-full bg-teal-500" style="width: 20%"></div>
-                            </div>
-                            <div class="text-xs text-gray-500">Продукт / Рішення (користь, робочий прототип)</div>
-                        </div>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-16 font-bold text-pink-500">15%</div>
-                        <div class="flex-1">
-                            <div class="h-4 bg-gray-200 rounded overflow-hidden">
-                                <div class="h-full bg-pink-500" style="width: 15%"></div>
-                            </div>
-                            <div class="text-xs text-gray-500">Презентація (постер, спіч, відповіді)</div>
-                        </div>
-                    </div>
-                    <div class="flex items-center">
-                        <div class="w-16 font-bold text-orange-500">15%</div>
-                        <div class="flex-1">
-                            <div class="h-4 bg-gray-200 rounded overflow-hidden">
-                                <div class="h-full bg-orange-500" style="width: 15%"></div>
-                            </div>
-                            <div class="text-xs text-gray-500">Рефлексія (аналіз помилок)</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-red-50 p-4 rounded border border-red-200">
-                    <h4 class="font-bold text-red-800 mb-2"><i class="fas fa-ban mr-2"></i>Мінімальні стандарти (Fail Criteria)</h4>
-                    <p class="text-sm text-red-700">Проєкт НЕ зараховується, якщо:</p>
-                    <ul class="list-disc list-inside text-sm text-red-700 mt-2">
-                        <li>Відсутній вимірюваний показник <strong>"Було" vs "Стало"</strong>.</li>
-                        <li>Відсутні первинні ("сирі") дані в журналі.</li>
-                        <li>Порушено етику (немає згод, небезпека).</li>
+                <div class="bg-white border-2 border-pink-200 p-4 rounded mb-4 text-xs">
+                    <h4 class="font-bold text-pink-800 mb-2 text-sm"><i class="fas fa-align-left mr-2"></i>Шаблон тексту постера</h4>
+                    <ul class="list-disc list-inside text-gray-700 space-y-1">
+                        <li><strong>Заголовок:</strong> короткий, з дієсловом (напр. «Як ми зменшили…»).</li>
+                        <li><strong>Анотація (3–4 речення):</strong> проблема, що зробили, головний результат.</li>
+                        <li><strong>Проблема та питання:</strong> 2–3 речення, приклад із життя класу.</li>
+                        <li><strong>Метод:</strong> що/де/скільки разів вимірювали.</li>
+                        <li><strong>Дані:</strong> 1–2 графіки/таблиці з підписами осей.</li>
+                        <li><strong>Висновки:</strong> 2–3 речення «було/стало» + пояснення.</li>
+                        <li><strong>Обмеження:</strong> що ми не врахували або що було складно.</li>
+                        <li><strong>Що далі:</strong> як можна продовжити або масштабувати.</li>
+                        <li><strong>Джерела:</strong> 3–5 ключових джерел + QR на повний звіт/таблицю.</li>
                     </ul>
                 </div>
 
-                <!-- Quiz Block -->
-                <div class="bg-slate-800 text-white p-6 rounded-lg shadow-inner mt-8">
-                    <div class="flex items-start">
-                        <i class="fas fa-question-circle text-yellow-400 text-3xl mr-4 mt-1"></i>
-                        <div class="w-full">
-                            <h4 class="font-bold text-lg mb-2">Перевірка знань</h4>
-                            <p class="mb-4">Команда зробила чудовий постер, але в журналі порожньо, а графіки намальовані "з голови". Яка оцінка?</p>
-                            <button onclick="toggleAnswer('ans6')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded text-sm transition">Показати відповідь</button>
-                            <div id="ans6" class="hidden mt-4 bg-slate-700 p-4 rounded border-l-4 border-yellow-500">
-                                <p><strong>Незадовільно / Дискваліфікація.</strong> Відсутність сирих даних порушує академічну доброчесність (Fail Criteria). Красивий постер дає лише 15% балів, а процес і дані — 50%.</p>
-                            </div>
-                        </div>
+                <div class="bg-white border-2 border-pink-200 p-4 rounded">
+                    <h4 class="font-bold text-pink-800 mb-2 text-sm"><i class="fas fa-clipboard-check mr-2"></i>Чек-лист перед друком</h4>
+                    <div class="grid md:grid-cols-2 gap-2 text-xs">
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Шрифт основного тексту ≥ 24 pt</label>
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Цифри перевірені з журналом</label>
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Графіки мають підписи осей та легенду</label>
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Фото/ілюстрації якісні й етичні</label>
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> Є розділ «Обмеження»</label>
+                        <label class="flex items-center"><input type="checkbox" class="mr-2"> QR-код веде на актуальний файл</label>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Block 7: Resources & Examples -->
+        <!-- Block 10: Assessment -->
+        <section id="assessment" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-indigo-600">
+            <div class="p-8">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-6 flex items-center">
+                    <span class="bg-indigo-100 text-indigo-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">10</span>
+                    Оцінювання (100%)
+                </h2>
+                
+                <div class="flex flex-col md:flex-row gap-4 mb-6">
+                    <div class="flex-1 space-y-3">
+                        <div class="flex items-center text-sm">
+                            <span class="w-12 font-bold text-indigo-600">30%</span>
+                            <div class="flex-1 bg-gray-200 h-2 rounded ml-1">
+                                <div class="bg-indigo-600 h-2 rounded" style="width:30%"></div>
+                            </div>
+                            <span class="ml-2 text-xs">Процес і журнал</span>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <span class="w-12 font-bold text-blue-500">20%</span>
+                            <div class="flex-1 bg-gray-200 h-2 rounded ml-1">
+                                <div class="bg-blue-500 h-2 rounded" style="width:20%"></div>
+                            </div>
+                            <span class="ml-2 text-xs">Якість даних</span>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <span class="w-12 font-bold text-teal-500">20%</span>
+                            <div class="flex-1 bg-gray-200 h-2 rounded ml-1">
+                                <div class="bg-teal-500 h-2 rounded" style="width:20%"></div>
+                            </div>
+                            <span class="ml-2 text-xs">Продукт</span>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <span class="w-12 font-bold text-pink-500">15%</span>
+                            <div class="flex-1 bg-gray-200 h-2 rounded ml-1">
+                                <div class="bg-pink-500 h-2 rounded" style="width:15%"></div>
+                            </div>
+                            <span class="ml-2 text-xs">Презентація</span>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <span class="w-12 font-bold text-orange-500">15%</span>
+                            <div class="flex-1 bg-gray-200 h-2 rounded ml-1">
+                                <div class="bg-orange-500 h-2 rounded" style="width:15%"></div>
+                            </div>
+                            <span class="ml-2 text-xs">Рефлексія</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-red-50 p-4 border border-red-200 rounded mb-4">
+                    <strong class="text-red-800 text-sm">Fail-criteria (проєкт не зараховується):</strong>
+                    <ul class="text-xs text-red-700 list-disc list-inside mt-1 space-y-1">
+                        <li>Відсутній вимірюваний показник «було/стало».</li>
+                        <li>Відсутні первинні («сирі») дані в журналі.</li>
+                        <li>Порушено етичні норми (немає згод, небезпека для дітей).</li>
+                    </ul>
+                </div>
+
+                <div class="bg-indigo-50 p-4 border border-indigo-200 rounded text-xs">
+                    <h4 class="font-bold text-indigo-800 mb-2 text-sm flex items-center">
+                        <i class="fas fa-people-arrows mr-2"></i>Взаємооцінювання та самооцінка
+                    </h4>
+                    <ul class="list-disc list-inside text-gray-700 space-y-1">
+                        <li>Учні заповнюють короткі анкети про власний внесок у команду.</li>
+                        <li>Команди можуть оцінити постери однокласників за спрощеною рубрикою.</li>
+                        <li>Результати не мають принижувати – тільки підсилювати рефлексію та розвиток.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Block 11: Admin & Moderation -->
+        <section id="admin" class="bg-slate-50 rounded-xl shadow-md overflow-hidden border-l-4 border-slate-500">
+            <div class="p-8">
+                <h2 class="text-2xl font-bold text-slate-900 mb-6 flex items-center">
+                    <span class="bg-slate-200 text-slate-800 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">
+                        11
+                    </span>
+                    Адміністрування, ризики та доступність
+                </h2>
+
+                <div class="grid lg:grid-cols-2 gap-6 mb-8 text-xs">
+                    <!-- RACI -->
+                    <div class="bg-white border border-slate-200 rounded p-4">
+                        <h3 class="font-bold text-slate-800 mb-2 text-sm">Міні-RACI (хто за що відповідає)</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-[11px] text-left">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        <th class="px-2 py-1">Задача</th>
+                                        <th class="px-2 py-1">R</th>
+                                        <th class="px-2 py-1">A</th>
+                                        <th class="px-2 py-1">C</th>
+                                        <th class="px-2 py-1">I</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b">
+                                        <td class="px-2 py-1">Дата, бюджет, простір</td>
+                                        <td class="px-2 py-1">Координатор</td>
+                                        <td class="px-2 py-1">Адмініст.</td>
+                                        <td class="px-2 py-1">Вчителі</td>
+                                        <td class="px-2 py-1">Батьки</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="px-2 py-1">Політики безпеки/етики</td>
+                                        <td class="px-2 py-1">Координатор</td>
+                                        <td class="px-2 py-1">Адмініст.</td>
+                                        <td class="px-2 py-1">Вчителі</td>
+                                        <td class="px-2 py-1">Учні</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="px-2 py-1">Рубрики та оцінювання</td>
+                                        <td class="px-2 py-1">Методист</td>
+                                        <td class="px-2 py-1">Адмініст.</td>
+                                        <td class="px-2 py-1">Вчителі</td>
+                                        <td class="px-2 py-1">Батьки</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-2 py-1">Комунікація з батьками</td>
+                                        <td class="px-2 py-1">Координатор</td>
+                                        <td class="px-2 py-1">Адмініст.</td>
+                                        <td class="px-2 py-1">Вчителі</td>
+                                        <td class="px-2 py-1">Учні</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mt-2 text-gray-600">R – виконує; A – несе кінцеву відповідальність; C – консультує; I – поінформований.</p>
+                    </div>
+
+                    <!-- Risks -->
+                    <div class="bg-white border border-slate-200 rounded p-4">
+                        <h3 class="font-bold text-slate-800 mb-2 text-sm">Основні ризики та план «B»</h3>
+                        <ul class="list-disc list-inside space-y-1 text-gray-700">
+                            <li><strong>Низька явка гостей:</strong> запросити паралельні класи, батьків, онлайн-трансляція.</li>
+                            <li><strong>Мало даних:</strong> продовжити збір ще на тиждень, спростити питання.</li>
+                            <li><strong>Затримка друку постерів:</strong> зробити цифрові постери (TV/проєктор).</li>
+                            <li><strong>Перевантаження залу:</strong> розбити подію на 2 сесії, зробити розклад для класів.</li>
+                            <li><strong>Порушення етики:</strong> мати чітку процедуру зупинки досліду/проєкту.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="grid lg:grid-cols-2 gap-6 text-xs">
+                    <!-- Accessibility -->
+                    <div class="bg-white border border-emerald-200 rounded p-4">
+                        <h3 class="font-bold text-emerald-800 mb-2 text-sm flex items-center">
+                            <i class="fas fa-universal-access mr-2"></i>Доступність для всіх учнів
+                        </h3>
+                        <ul class="list-disc list-inside space-y-1 text-gray-700">
+                            <li>Стенди на висоті, зручній для молодших школярів.</li>
+                            <li>Чіткий контраст тексту й фону, великі шрифти.</li>
+                            <li>Можливість використовувати піктограми та фото для пояснень.</li>
+                            <li>Наявність «тихої зони» для відпочинку.</li>
+                            <li>Попереднє інформування про формат дітям із ООП.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Moderation & communication -->
+                    <div class="bg-white border border-indigo-200 rounded p-4">
+                        <h3 class="font-bold text-indigo-800 mb-2 text-sm flex items-center">
+                            <i class="fas fa-scale-balanced mr-2"></i>Модерація оцінювання та комунікація
+                        </h3>
+                        <ul class="list-disc list-inside space-y-1 text-gray-700 mb-2">
+                            <li>Журі працює за однаковими рубриками, проходить короткий інструктаж.</li>
+                            <li>Бажано подвійне оцінювання (2 незалежні члени журі на постер).</li>
+                            <li>Усі результати фіксуються в єдиній таблиці.</li>
+                            <li>З учнями та батьками заздалегідь проговорюється, що це про навчання, а не «конкурс красоти».</li>
+                        </ul>
+                        <h4 class="font-bold text-indigo-800 mb-1 text-sm">Міні-комунікаційний план</h4>
+                        <ul class="list-disc list-inside space-y-1 text-gray-700">
+                            <li><strong>-4 тижні:</strong> анонс для батьків і учнів.</li>
+                            <li><strong>-2 тижні:</strong> нагадування + технічні вимоги до постерів.</li>
+                            <li><strong>-3 дні:</strong> лист/повідомлення з розкладом.</li>
+                            <li><strong>+1 день:</strong> подяка та коротке резюме результатів.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Block 12: Resources -->
         <section id="resources" class="bg-white rounded-xl shadow-md overflow-hidden border-l-4 border-cyan-500">
             <div class="p-8">
                 <h2 class="text-2xl font-bold text-cyan-900 mb-6 flex items-center">
-                    <span class="bg-cyan-100 text-cyan-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">9</span>
-                    Завантажувані ресурси
+                    <span class="bg-cyan-100 text-cyan-600 w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">12</span>
+                    Ресурси
                 </h2>
-
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    <div class="border-2 border-cyan-200 rounded-lg p-6 hover:shadow-lg transition">
-                        <div class="text-cyan-600 text-4xl mb-3 text-center"><i class="fas fa-file-pdf"></i></div>
-                        <h3 class="font-bold text-center mb-2">Шаблон паспорту проєкту</h3>
-                        <p class="text-sm text-gray-600 text-center mb-4">Project Canvas для друку (PDF, A4)</p>
-                        <button class="w-full bg-cyan-600 text-white py-2 rounded hover:bg-cyan-700 transition text-sm">
-                            <i class="fas fa-download mr-2"></i>Завантажити
-                        </button>
-                    </div>
-
-                    <div class="border-2 border-green-200 rounded-lg p-6 hover:shadow-lg transition">
-                        <div class="text-green-600 text-4xl mb-3 text-center"><i class="fas fa-file-excel"></i></div>
-                        <h3 class="font-bold text-center mb-2">Таблиця збору даних</h3>
-                        <p class="text-sm text-gray-600 text-center mb-4">Excel-шаблон з формулами (XLSX)</p>
-                        <button class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition text-sm">
-                            <i class="fas fa-download mr-2"></i>Завантажити
-                        </button>
-                    </div>
-
-                    <div class="border-2 border-purple-200 rounded-lg p-6 hover:shadow-lg transition">
-                        <div class="text-purple-600 text-4xl mb-3 text-center"><i class="fas fa-file-word"></i></div>
-                        <h3 class="font-bold text-center mb-2">Згода батьків</h3>
-                        <p class="text-sm text-gray-600 text-center mb-4">Шаблон згоди (DOCX)</p>
-                        <button class="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700 transition text-sm">
-                            <i class="fas fa-download mr-2"></i>Завантажити
-                        </button>
-                    </div>
-
-                    <div class="border-2 border-orange-200 rounded-lg p-6 hover:shadow-lg transition">
-                        <div class="text-orange-600 text-4xl mb-3 text-center"><i class="fas fa-tasks"></i></div>
-                        <h3 class="font-bold text-center mb-2">Чек-лист етики</h3>
-                        <p class="text-sm text-gray-600 text-center mb-4">Контрольний список (PDF)</p>
-                        <button class="w-full bg-orange-600 text-white py-2 rounded hover:bg-orange-700 transition text-sm">
-                            <i class="fas fa-download mr-2"></i>Завантажити
-                        </button>
-                    </div>
-
-                    <div class="border-2 border-pink-200 rounded-lg p-6 hover:shadow-lg transition">
-                        <div class="text-pink-600 text-4xl mb-3 text-center"><i class="fas fa-clipboard-list"></i></div>
-                        <h3 class="font-bold text-center mb-2">Чек-лист постера</h3>
-                        <p class="text-sm text-gray-600 text-center mb-4">Передруковий контроль (PDF)</p>
-                        <button class="w-full bg-pink-600 text-white py-2 rounded hover:bg-pink-700 transition text-sm">
-                            <i class="fas fa-download mr-2"></i>Завантажити
-                        </button>
-                    </div>
-
-                    <div class="border-2 border-blue-200 rounded-lg p-6 hover:shadow-lg transition">
-                        <div class="text-blue-600 text-4xl mb-3 text-center"><i class="fas fa-book"></i></div>
-                        <h3 class="font-bold text-center mb-2">Повний довідник</h3>
-                        <p class="text-sm text-gray-600 text-center mb-4">Методичний посібник (PDF, 45 стор.)</p>
-                        <button class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition text-sm">
-                            <i class="fas fa-download mr-2"></i>Завантажити
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bg-gradient-to-r from-cyan-50 to-blue-50 p-6 rounded-lg border-2 border-cyan-300">
-                    <h3 class="font-bold text-cyan-900 mb-4 text-center text-xl">
-                        <i class="fas fa-lightbulb mr-2"></i>Приклади реальних проєктів
-                    </h3>
-                    <div class="grid md:grid-cols-3 gap-4">
-                        <div class="bg-white p-4 rounded shadow-sm">
-                            <h4 class="font-bold text-sm mb-2 text-gray-800">Проєкт: "Зелена школа"</h4>
-                            <p class="text-xs text-gray-600 mb-3">Зменшення відходів паперу на 40% за 6 тижнів</p>
-                            <div class="flex gap-2">
-                                <button class="flex-1 bg-cyan-100 text-cyan-800 py-1 rounded text-xs hover:bg-cyan-200 transition">
-                                    <i class="fas fa-file-pdf mr-1"></i>Постер
-                                </button>
-                                <button class="flex-1 bg-blue-100 text-blue-800 py-1 rounded text-xs hover:bg-blue-200 transition">
-                                    <i class="fas fa-chart-line mr-1"></i>Дані
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="bg-white p-4 rounded shadow-sm">
-                            <h4 class="font-bold text-sm mb-2 text-gray-800">Проєкт: "Юні садівники"</h4>
-                            <p class="text-xs text-gray-600 mb-3">Вплив температури на проростання квасолі</p>
-                            <div class="flex gap-2">
-                                <button class="flex-1 bg-cyan-100 text-cyan-800 py-1 rounded text-xs hover:bg-cyan-200 transition">
-                                    <i class="fas fa-file-pdf mr-1"></i>Постер
-                                </button>
-                                <button class="flex-1 bg-blue-100 text-blue-800 py-1 rounded text-xs hover:bg-blue-200 transition">
-                                    <i class="fas fa-chart-line mr-1"></i>Дані
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="bg-white p-4 rounded shadow-sm">
-                            <h4 class="font-bold text-sm mb-2 text-gray-800">Проєкт: "Здорові перекуси"</h4>
-                            <p class="text-xs text-gray-600 mb-3">Підвищення споживання фруктів на 35%</p>
-                            <div class="flex gap-2">
-                                <button class="flex-1 bg-cyan-100 text-cyan-800 py-1 rounded text-xs hover:bg-cyan-200 transition">
-                                    <i class="fas fa-file-pdf mr-1"></i>Постер
-                                </button>
-                                <button class="flex-1 bg-blue-100 text-blue-800 py-1 rounded text-xs hover:bg-blue-200 transition">
-                                    <i class="fas fa-chart-line mr-1"></i>Дані
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-8 bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
-                    <h4 class="font-bold text-yellow-800 mb-2"><i class="fas fa-exclamation-circle mr-2"></i>Типові помилки та як їх уникнути</h4>
-                    <div class="grid md:grid-cols-2 gap-3 text-sm">
+                <div class="grid md:grid-cols-3 gap-4">
+                    <button class="flex items-center p-4 border rounded hover:bg-cyan-50 transition text-left group">
+                        <i class="fas fa-file-pdf text-2xl text-cyan-600 mr-3 group-hover:scale-110 transition"></i>
                         <div>
-                            <p class="font-bold text-red-700 mb-1">❌ Помилка: Надто загальна тема</p>
-                            <p class="text-gray-700">✅ Рішення: Використайте формулу "Як ми можемо... у... за... ?"</p>
+                            <span class="block font-bold text-sm">Паспорт проєкту</span>
+                            <span class="text-xs text-gray-500">Шаблон PDF</span>
                         </div>
+                    </button>
+                    <button class="flex items-center p-4 border rounded hover:bg-green-50 transition text-left group">
+                        <i class="fas fa-file-excel text-2xl text-green-600 mr-3 group-hover:scale-110 transition"></i>
                         <div>
-                            <p class="font-bold text-red-700 mb-1">❌ Помилка: Відсутні "сирі дані"</p>
-                            <p class="text-gray-700">✅ Рішення: Зберігайте всі чернетки з датами та підписами</p>
+                            <span class="block font-bold text-sm">Таблиця даних</span>
+                            <span class="text-xs text-gray-500">Шаблон Excel</span>
                         </div>
+                    </button>
+                    <button class="flex items-center p-4 border rounded hover:bg-purple-50 transition text-left group">
+                        <i class="fas fa-file-word text-2xl text-purple-600 mr-3 group-hover:scale-110 transition"></i>
                         <div>
-                            <p class="font-bold text-red-700 mb-1">❌ Помилка: 1 виміряв — зробив висновок</p>
-                            <p class="text-gray-700">✅ Рішення: Мінімум 3 повтори для експериментів</p>
+                            <span class="block font-bold text-sm">Згода батьків</span>
+                            <span class="text-xs text-gray-500">Шаблон DOCX</span>
                         </div>
+                    </button>
+                    <button class="flex items-center p-4 border rounded hover:bg-orange-50 transition text-left group">
+                        <i class="fas fa-tasks text-2xl text-orange-600 mr-3 group-hover:scale-110 transition"></i>
                         <div>
-                            <p class="font-bold text-red-700 mb-1">❌ Помилка: Дрібний шрифт на постері</p>
-                            <p class="text-gray-700">✅ Рішення: Заголовок ≥72pt, текст 24-28pt</p>
+                            <span class="block font-bold text-sm">Чек-лист етики</span>
+                            <span class="text-xs text-gray-500">PDF</span>
                         </div>
-                    </div>
+                    </button>
+                    <button class="flex items-center p-4 border rounded hover:bg-pink-50 transition text-left group">
+                        <i class="fas fa-clipboard-list text-2xl text-pink-600 mr-3 group-hover:scale-110 transition"></i>
+                        <div>
+                            <span class="block font-bold text-sm">Чек-лист постера</span>
+                            <span class="text-xs text-gray-500">PDF</span>
+                        </div>
+                    </button>
+                    <button class="flex items-center p-4 border rounded hover:bg-blue-50 transition text-left group">
+                        <i class="fas fa-book text-2xl text-blue-600 mr-3 group-hover:scale-110 transition"></i>
+                        <div>
+                            <span class="block font-bold text-sm">Повний довідник</span>
+                            <span class="text-xs text-gray-500">PDF (45 стор.)</span>
+                        </div>
+                    </button>
                 </div>
             </div>
         </section>
@@ -895,38 +932,27 @@
     </main>
 
     <footer class="bg-slate-900 text-slate-400 py-8 text-center text-sm">
-        <p>© 2025 Тренінговий центр для вчителів. Створено на основі методичного довідника школи.</p>
-        <p class="mt-2 text-xs">Для питань та підтримки: <a href="mailto:research@school.ua" class="text-blue-400 hover:text-blue-300">research@school.ua</a></p>
+        <p>© 2025 Тренінговий центр для вчителів.</p>
+        <p class="text-xs mt-2">Контент базується на шкільному методичному довіднику.</p>
     </footer>
 
+    <!-- Interactive Logic -->
     <script>
-        function toggleAnswer(id) {
-            const answer = document.getElementById(id);
-            if (answer.classList.contains('hidden')) {
-                answer.classList.remove('hidden');
-            } else {
-                answer.classList.add('hidden');
-            }
-        }
-
-        // Add smooth scroll behavior
+        // Smooth scroll for internal links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
         });
 
-        // Simulate download functionality (replace with actual file links)
-        document.querySelectorAll('button:has(.fa-download)').forEach(btn => {
+        // Dummy download for resource buttons
+        document.querySelectorAll('#resources button').forEach(btn => {
             btn.addEventListener('click', function() {
-                alert('Функція завантаження буде активна після інтеграції з файловим сховищем. Наразі це демо-версія.');
+                alert('Завантаження файлу (демо)… Додайте реальне посилання у продакшені.');
             });
         });
     </script>
