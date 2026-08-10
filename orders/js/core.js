@@ -46,9 +46,12 @@ export function buildOrderModel(template, formData, profile, orderMeta) {
   return {
     templateId: template.id,
     category: template.category,
+    recordSeries: clean(template.recordSeries || "Основна діяльність"),
     title: clean(built.title),
     preamble: clean(built.preamble),
     points: (built.points || []).map(clean).filter(Boolean),
+    attachments: sanitizeAttachments(built.attachments),
+    legalBasis: clean(formData?.verifiedBasis),
     orderDate: clean(orderMeta.orderDate),
     orderNumber: clean(orderMeta.orderNumber),
     institutionName: clean(profile.institutionName),
@@ -63,6 +66,19 @@ export function buildOrderModel(template, formData, profile, orderMeta) {
   };
 }
 
+function sanitizeAttachments(attachments) {
+  if (!Array.isArray(attachments)) return [];
+  return attachments.slice(0, 20).map((attachment) => ({
+    title: clean(attachment?.title),
+    note: clean(attachment?.note),
+    paragraphs: Array.isArray(attachment?.paragraphs) ? attachment.paragraphs.map(clean).filter(Boolean).slice(0, 500) : [],
+    columns: Array.isArray(attachment?.columns) ? attachment.columns.map((column) => clean(column)).filter(Boolean).slice(0, 12) : [],
+    rows: Array.isArray(attachment?.rows)
+      ? attachment.rows.slice(0, 500).map((row) => (Array.isArray(row) ? row.slice(0, 12).map(clean) : []))
+      : [],
+  })).filter((attachment) => attachment.title || attachment.paragraphs.length || attachment.rows.length);
+}
+
 export function clampNumber(value, min, max, fallback) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -73,7 +89,7 @@ export function containsPlaceholder(text) {
   return /\{\{|\}\}|\[\s*(?:встав|ПІБ|дата|номер|назва|посада)|TODO|XXX/iu.test(String(text ?? ""));
 }
 
-export function validateOrder({ template, rawData, model, profile, letterheadAsset }) {
+export function validateOrder({ template, rawData, model, profile, letterheadAsset, allowDraft = false }) {
   const results = [];
   const push = (level, title, detail = "") => results.push({ level, title, detail });
 
@@ -83,18 +99,20 @@ export function validateOrder({ template, rawData, model, profile, letterheadAss
   if (!clean(profile.location)) push("error", "Не вказано населений пункт");
   else push("ok", "Місце складення документа заповнене");
 
+  if (clean(profile.edrpou) && !/^\d{8}$/.test(clean(profile.edrpou))) push("error", "Код ЄДРПОУ має містити рівно 8 цифр");
+
   if (!clean(profile.signerPosition) || !clean(profile.signerName)) push("error", "Не заповнено підписанта");
   else push("ok", "Підписант заповнений");
 
   if (!model.orderDate) push("error", "Не вказано дату наказу");
   else push("ok", "Дата наказу заповнена");
 
-  if (!model.orderNumber) push("warn", "Не вказано номер наказу", "Для чернетки це допустимо; перед друком номер варто перевірити.");
+  if (!model.orderNumber) push(allowDraft ? "warn" : "error", "Не вказано номер наказу", allowDraft ? "Для чернетки це допустимо; фінальний експорт заблоковано до присвоєння номера." : "Присвойте номер у відповідній реєстраційній серії перед фінальним експортом.");
   else push("ok", "Номер наказу заповнений");
 
   validateFields(template.fields, rawData, push);
 
-  if (!/^Про\b/u.test(model.title)) push("warn", "Заголовок не починається зі слова «Про»", "Для наказів закладу освіти зазвичай використовується заголовок, що починається з «Про». ");
+  if (!/^Про(?:\s|$)/u.test(model.title)) push("error", "Заголовок не починається зі слова «Про»", "Виправте заголовок перед фінальним експортом наказу.");
   else push("ok", "Заголовок починається зі слова «Про»");
 
   if (!model.preamble) push("error", "Преамбула порожня");
@@ -106,6 +124,7 @@ export function validateOrder({ template, rawData, model, profile, letterheadAss
   else push("ok", "Службових заповнювачів не знайдено");
 
   if (model.letterheadMode === "preprinted") push("warn", "Обрано друк на готовому паперовому бланку", `Перевірте пробним друком верхній відступ ${model.preprintedTopMm} мм.`);
+  if (model.letterheadMode === "standard") push("warn", "Текстова шапка не є затвердженим бланком закладу", "Для фінального документа використайте затверджений паперовий або графічний бланк відповідно до локальної інструкції з діловодства.");
   if (model.letterheadMode === "image") {
     if (!letterheadAsset?.bytes) push("error", "Не завантажено зображення фірмового бланка");
     else push("ok", "Зображення бланка готове до вбудовування в DOCX");
@@ -113,6 +132,15 @@ export function validateOrder({ template, rawData, model, profile, letterheadAss
 
   if (model.preamble.length < 15) push("warn", "Преамбула дуже коротка", "Перевірте, чи достатньо описано мету або підставу.");
   if (model.points.some((p) => p.length < 4)) push("warn", "Є надто короткий пункт наказу");
+
+  if (typeof template.validate === "function") {
+    const customResults = template.validate(rawData, model);
+    if (Array.isArray(customResults)) customResults.forEach((result) => {
+      if (result && ["error", "warn", "ok"].includes(result.level) && result.title) {
+        push(result.level, result.title, result.detail || "");
+      }
+    });
+  }
 
   const hasErrors = results.some((r) => r.level === "error");
   return { results, hasErrors };
@@ -130,6 +158,13 @@ function validateFields(fields, data, push, prefix = "") {
     }
     if (field.required && !clean(value)) push("error", `Обов’язкове поле не заповнено: ${label}`);
     if (field.maxlength && String(value ?? "").length > field.maxlength) push("error", `Перевищено допустиму довжину: ${label}`);
+    if (clean(value) && field.type === "number") {
+      const number = Number(value);
+      if (!Number.isFinite(number)) push("error", `Некоректне число: ${label}`);
+      if (Number.isFinite(number) && Number.isFinite(Number(field.min)) && number < Number(field.min)) push("error", `Значення менше дозволеного (${field.min}): ${label}`);
+      if (Number.isFinite(number) && Number.isFinite(Number(field.max)) && number > Number(field.max)) push("error", `Значення більше дозволеного (${field.max}): ${label}`);
+    }
+    if (clean(value) && field.type === "date" && Number.isNaN(new Date(`${value}T00:00:00`).getTime())) push("error", `Некоректна дата: ${label}`);
   }
 }
 

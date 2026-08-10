@@ -7,7 +7,7 @@ import { ORDER_TEMPLATES, ACADEMIC_MONTHS } from "../js/templates.js";
 import { xmlEscape, sanitizeFilename, validateTemplateSchemas, buildOrderModel, validateOrder } from "../js/core.js";
 import { buildDocxFiles, buildDocxBytes, crc32, verifyGeneratedDocx } from "../js/docx.js";
 import { detectImageMime } from "../js/image.js";
-import { sanitizeOrderRecord } from "../js/storage.js";
+import { sanitizeOrderRecord, saveProfile, clearProfile, saveOrderRecord } from "../js/storage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, "output");
@@ -29,6 +29,9 @@ assert.doesNotThrow(() => new vm.Script(appBundle));
 assert.doesNotThrow(() => new vm.Script(testsBundle));
 assert.ok(!/^\s*import\s/m.test(appBundle));
 assert.ok(!/^\s*export\s/m.test(appBundle));
+assert.ok(appBundle.includes("confirmLeaveEditor"));
+assert.ok(appBundle.includes('aria-hidden", "false"'));
+assert.ok(appBundle.includes("school-order-constructor-orders"));
 
 assert.deepEqual(validateTemplateSchemas(ORDER_TEMPLATES), []);
 assert.equal(xmlEscape(`<x a="1">&</x>`), "&lt;x a=&quot;1&quot;&gt;&amp;&lt;/x&gt;");
@@ -63,9 +66,16 @@ const model = {
 };
 const files = buildDocxFiles(model);
 assert.ok(files.has("word/document.xml"));
+assert.ok(files.has("word/numbering.xml"));
+assert.ok(files.has("word/header1.xml"));
 const xml = new TextDecoder().decode(files.get("word/document.xml"));
 assert.ok(!xml.includes("<script>"));
 assert.ok(xml.includes("&lt;script&gt;"));
+assert.ok(xml.includes("<w:numPr>"));
+assert.ok(xml.includes("<w:titlePg/>"));
+assert.ok(xml.includes('w:type="default" r:id="rIdHeader"'));
+assert.ok(xml.includes('w:header="720"'));
+assert.ok(new TextDecoder().decode(files.get("word/header1.xml")).includes(" PAGE "));
 
 const verification = verifyGeneratedDocx(model);
 assert.equal(verification.ok, true, verification.errors.join("; "));
@@ -83,7 +93,8 @@ const completeProfile = {
 };
 for (const [index, template] of ORDER_TEMPLATES.entries()) {
   const raw = sampleDataForTemplate(template);
-  const order = buildOrderModel(template, raw, completeProfile, { orderDate: "2026-08-10", orderNumber: `T-${index + 1}` });
+  const orderDate = template.id === "attestation-results" ? "2026-09-03" : "2026-08-10";
+  const order = buildOrderModel(template, raw, completeProfile, { orderDate, orderNumber: `T-${index + 1}` });
   const validation = validateOrder({ template, rawData: raw, model: order, profile: completeProfile, letterheadAsset: null });
   assert.equal(validation.hasErrors, false, `${template.id}: ${validation.results.filter((x) => x.level === "error").map((x) => x.title).join("; ")}`);
   const generated = verifyGeneratedDocx(order);
@@ -119,10 +130,51 @@ const imageAsset = { bytes: pngBytes, mime: "image/png", width: 1200, height: 22
 const imageVerification = verifyGeneratedDocx(imageModel, imageAsset);
 assert.equal(imageVerification.ok, true, imageVerification.errors.join("; "));
 assert.ok(imageVerification.files.has("word/media/letterhead.png"));
+assert.ok(new TextDecoder().decode(imageVerification.files.get("word/document.xml")).includes('descr="Фірмовий бланк закладу освіти'));
 fs.writeFileSync(path.join(outDir, "qa-letterhead.docx"), imageVerification.bytes);
+
+const tallImage = { ...imageAsset, width: 500, height: 2000, name: "tall.png" };
+const tallImageXml = new TextDecoder().decode(buildDocxFiles(imageModel, tallImage).get("word/document.xml"));
+assert.ok(tallImageXml.includes(`cy="${60 * 36000}"`), "Letterhead height must be capped at 60 mm");
 
 const preprintedModel = { ...model, letterheadMode: "preprinted", preprintedTopMm: 61 };
 const preprintedXml = new TextDecoder().decode(buildDocxFiles(preprintedModel).get("word/document.xml"));
 assert.ok(preprintedXml.includes(`w:top="${Math.round(61 * 56.6929133858)}"`));
+
+const baseTemplate = ORDER_TEMPLATES.find((template) => template.id === "school-year-organization");
+const baseRaw = sampleDataForTemplate(baseTemplate);
+const missingNumberModel = buildOrderModel(baseTemplate, baseRaw, completeProfile, { orderDate: "2026-08-10", orderNumber: "" });
+assert.ok(validateOrder({ template: baseTemplate, rawData: baseRaw, model: missingNumberModel, profile: completeProfile }).hasErrors);
+const draftValidation = validateOrder({ template: baseTemplate, rawData: baseRaw, model: missingNumberModel, profile: completeProfile, allowDraft: true });
+assert.equal(draftValidation.hasErrors, false);
+assert.ok(draftValidation.results.some((result) => result.level === "warn" && result.title.includes("номер")));
+
+const commissionTemplate = ORDER_TEMPLATES.find((template) => template.id === "attestation-commission");
+const commissionRaw = { ...sampleDataForTemplate(commissionTemplate), employeeCount: 14 };
+const commissionModel = buildOrderModel(commissionTemplate, commissionRaw, completeProfile, { orderDate: "2026-09-10", orderNumber: "12-к" });
+assert.ok(validateOrder({ template: commissionTemplate, rawData: commissionRaw, model: commissionModel, profile: completeProfile }).results.some((result) => result.level === "error" && result.title.includes("не може створити")));
+
+const appendixTemplate = ORDER_TEMPLATES.find((template) => template.id === "attestation-list-schedule");
+const appendixRaw = sampleDataForTemplate(appendixTemplate);
+const appendixModel = buildOrderModel(appendixTemplate, appendixRaw, completeProfile, { orderDate: "2026-10-10", orderNumber: "18-к" });
+assert.equal(appendixModel.attachments.length, 2);
+const appendixXml = new TextDecoder().decode(buildDocxFiles(appendixModel).get("word/document.xml"));
+assert.ok(appendixXml.includes("<w:tbl>"));
+assert.ok(appendixXml.includes("Графік засідань атестаційної комісії"));
+assert.equal((appendixXml.match(/<w:pgNumType w:start="1"\/>/g) || []).length, 3);
+assert.equal((appendixXml.match(/<w:type w:val="nextPage"\/>/g) || []).length, 2);
+fs.writeFileSync(path.join(outDir, "qa-appendices.docx"), buildDocxBytes(appendixModel));
+
+const originalLocalStorage = globalThis.localStorage;
+globalThis.localStorage = {
+  getItem() { return null; },
+  setItem() { throw new Error("quota"); },
+  removeItem() { throw new Error("denied"); },
+};
+assert.throws(() => saveProfile(completeProfile), /Не вдалося зберегти профіль/);
+assert.throws(() => clearProfile(), /Не вдалося видалити профіль/);
+await assert.rejects(() => saveOrderRecord({ id: "storage-test", templateId: "test", title: "Про тест" }), /Не вдалося зберегти наказ/);
+if (originalLocalStorage === undefined) delete globalThis.localStorage;
+else globalThis.localStorage = originalLocalStorage;
 
 console.log(`OK: ${ORDER_TEMPLATES.length} templates; standard + image-letterhead DOCX samples written to ${outDir}`);

@@ -1,4 +1,4 @@
-# Security notes — MVP 1.3
+# Security notes — MVP 1.4
 
 ## Threat model
 
@@ -17,10 +17,14 @@ Primary risks are accidental transmission or persistence of employee/student dat
 9. **Fail-closed export** — critical content/structure errors block DOCX and print.
 10. **Post-generation checks** — generated OOXML/ZIP structure is verified before download.
 11. **file:// compatibility** — production uses classic generated bundles and no runtime CDN dependency.
+12. **Verified persistence** — profile/order writes are read back; partial deletion and exhausted/blocked storage are reported instead of shown as successful.
+13. **Versioned imports** — only backups with the supported `kind` and `version` are accepted; older local records are not overwritten by stale imports.
 
 ## Important limitation
 
 Browser localStorage/IndexedDB is **not encryption**. Anyone with access to the same browser profile or computer may potentially access locally stored data. For shared/public computers, use the app without saving orders or delete local data after work.
+
+Browser storage is scoped to an **origin**, not to a repository subdirectory. If this app is published below a shared host such as `https://example.github.io/orders/`, scripts from other paths on `https://example.github.io/` share the same storage boundary. Production use with employee/student data therefore requires a dedicated origin (preferably a separate subdomain) with enforced security headers. Files such as `_headers` are not applied by every static host, including GitHub Pages.
 
 Exported JSON backups are also plain files. A saved-orders backup can contain personal data and should be handled as a confidential document.
 

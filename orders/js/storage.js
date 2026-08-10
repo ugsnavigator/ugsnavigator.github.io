@@ -23,7 +23,15 @@ export function loadProfile() {
 
 export function saveProfile(profile) {
   const safe = sanitizeProfile(profile);
-  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(safe)); } catch { /* file origin/privacy mode may deny storage */ }
+  const serialized = JSON.stringify(safe);
+  try {
+    localStorage.setItem(PROFILE_KEY, serialized);
+    if (localStorage.getItem(PROFILE_KEY) !== serialized) {
+      throw new Error("Браузер не підтвердив запис профілю");
+    }
+  } catch (error) {
+    throw storageError("Не вдалося зберегти профіль у цьому браузері", error);
+  }
   return safe;
 }
 
@@ -33,7 +41,7 @@ export function sanitizeProfile(profile = {}) {
     institutionName: safeString(profile.institutionName, 240),
     shortName: safeString(profile.shortName, 120),
     location: safeString(profile.location, 120),
-    edrpou: safeString(profile.edrpou, 12).replace(/[^0-9]/g, ""),
+    edrpou: safeString(profile.edrpou, 8).replace(/[^0-9]/g, ""),
     signerPosition: safeString(profile.signerPosition || "Директор", 120),
     signerName: safeString(profile.signerName, 160),
     letterheadMode: mode,
@@ -55,7 +63,12 @@ export function clearProfile() {
   try {
     localStorage.removeItem(PROFILE_KEY);
     localStorage.removeItem("school-order-constructor.profile.v1");
-  } catch { /* ignore unavailable storage */ }
+    if (localStorage.getItem(PROFILE_KEY) !== null || localStorage.getItem("school-order-constructor.profile.v1") !== null) {
+      throw new Error("Браузер не підтвердив видалення профілю");
+    }
+  } catch (error) {
+    throw storageError("Не вдалося видалити профіль", error);
+  }
 }
 
 export async function saveLetterheadAsset(asset) {
@@ -104,10 +117,14 @@ export async function saveOrderRecord(record) {
     db.close();
     await trimSavedOrders();
     return safe;
-  } catch {
+  } catch (indexedDbError) {
     const current = loadFallbackOrders().filter((item) => item.id !== safe.id);
     current.unshift(safe);
-    saveFallbackOrders(current.slice(0, MAX_SAVED_ORDERS));
+    try {
+      saveFallbackOrders(current.slice(0, MAX_SAVED_ORDERS));
+    } catch (fallbackError) {
+      throw storageError("Не вдалося зберегти наказ ані в IndexedDB, ані в резервному сховищі", fallbackError, indexedDbError);
+    }
     return safe;
   }
 }
@@ -144,32 +161,60 @@ export async function getOrderRecord(id) {
 
 export async function deleteOrderRecord(id) {
   const safeId = safeString(id, 80);
+  if (!safeId) throw new Error("Некоректний ідентифікатор наказу");
+  let indexedDbError = null;
   try {
     const db = await openDb();
     await txPromise(db, ORDER_STORE, "readwrite", (store) => store.delete(safeId));
     db.close();
-  } catch { /* fallback still removed below */ }
-  saveFallbackOrders(loadFallbackOrders().filter((item) => item.id !== safeId));
+  } catch (error) {
+    indexedDbError = error;
+  }
+  try {
+    saveFallbackOrders(loadFallbackOrders().filter((item) => item.id !== safeId));
+  } catch (fallbackError) {
+    throw storageError("Не вдалося підтвердити видалення наказу з локальних сховищ", fallbackError, indexedDbError);
+  }
+  if (indexedDbError && typeof indexedDB !== "undefined") {
+    throw storageError("Наказ видалено з резервного сховища, але IndexedDB не підтвердила видалення", indexedDbError);
+  }
 }
 
 export async function clearOrderRecords() {
+  let indexedDbError = null;
   try {
     const db = await openDb();
     await txPromise(db, ORDER_STORE, "readwrite", (store) => store.clear());
     db.close();
-  } catch { /* fallback still cleared below */ }
-  try { localStorage.removeItem(ORDER_FALLBACK_KEY); } catch { /* ignore */ }
+  } catch (error) {
+    indexedDbError = error;
+  }
+  try {
+    localStorage.removeItem(ORDER_FALLBACK_KEY);
+    if (localStorage.getItem(ORDER_FALLBACK_KEY) !== null) throw new Error("Браузер не підтвердив очищення резервного сховища");
+  } catch (fallbackError) {
+    throw storageError("Не вдалося очистити локальні накази", fallbackError, indexedDbError);
+  }
+  if (indexedDbError && typeof indexedDB !== "undefined") {
+    throw storageError("Резервне сховище очищено, але IndexedDB не підтвердила очищення", indexedDbError);
+  }
 }
 
 export async function importOrderRecords(records) {
   if (!Array.isArray(records)) throw new Error("Невірний формат резервної копії");
   const safeRecords = records.slice(0, MAX_SAVED_ORDERS).map(sanitizeOrderRecord).filter((x) => x.id && x.templateId);
+  const existing = new Map((await listOrderRecords()).map((record) => [record.id, record]));
+  const accepted = safeRecords.filter((record) => {
+    const current = existing.get(record.id);
+    return !current || String(record.updatedAt) > String(current.updatedAt);
+  });
+  if (!accepted.length) return 0;
   try {
     const db = await openDb();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(ORDER_STORE, "readwrite");
       const store = tx.objectStore(ORDER_STORE);
-      safeRecords.forEach((record) => store.put(record));
+      accepted.forEach((record) => store.put(record));
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error || new Error("IndexedDB transaction error"));
       tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
@@ -178,16 +223,22 @@ export async function importOrderRecords(records) {
     await trimSavedOrders();
   } catch {
     const merged = new Map(loadFallbackOrders().map((item) => [item.id, item]));
-    safeRecords.forEach((item) => merged.set(item.id, item));
+    accepted.forEach((item) => merged.set(item.id, item));
     saveFallbackOrders([...merged.values()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, MAX_SAVED_ORDERS));
   }
-  return safeRecords.length;
+  return accepted.length;
 }
 
 export async function clearAllLocalData() {
-  clearProfile();
-  try { await deleteLetterheadAsset(); } catch { /* IndexedDB may be unavailable */ }
-  try { await clearOrderRecords(); } catch { /* IndexedDB may be unavailable */ }
+  const failures = [];
+  try { clearProfile(); } catch (error) { failures.push(error); }
+  try { await deleteLetterheadAsset(); } catch (error) {
+    if (typeof indexedDB !== "undefined") failures.push(storageError("Не вдалося видалити зображення бланка", error));
+  }
+  try { await clearOrderRecords(); } catch (error) { failures.push(error); }
+  if (failures.length) {
+    throw new AggregateError(failures, "Не всі локальні дані вдалося видалити. Перевірте дозволи браузера та повторіть дію.");
+  }
 }
 
 async function trimSavedOrders() {
@@ -216,7 +267,20 @@ function loadFallbackOrders() {
 }
 
 function saveFallbackOrders(records) {
-  try { localStorage.setItem(ORDER_FALLBACK_KEY, JSON.stringify(records.slice(0, MAX_SAVED_ORDERS))); } catch { /* unavailable/full storage */ }
+  const serialized = JSON.stringify(records.slice(0, MAX_SAVED_ORDERS));
+  try {
+    localStorage.setItem(ORDER_FALLBACK_KEY, serialized);
+    if (localStorage.getItem(ORDER_FALLBACK_KEY) !== serialized) {
+      throw new Error("Браузер не підтвердив запис резервної копії наказів");
+    }
+  } catch (error) {
+    throw storageError("Резервне локальне сховище недоступне або переповнене", error);
+  }
+}
+
+function storageError(message, ...causes) {
+  const details = causes.filter(Boolean).map((error) => error?.message || String(error)).filter(Boolean).join("; ");
+  return new Error(details ? `${message}: ${details}` : message);
 }
 
 function safeString(value, max) {
@@ -251,6 +315,10 @@ function sanitizeJsonTree(value, depth) {
 
 function openDb() {
   return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("IndexedDB недоступна"));
+      return;
+    }
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = () => reject(request.error || new Error("IndexedDB error"));
     request.onupgradeneeded = () => {

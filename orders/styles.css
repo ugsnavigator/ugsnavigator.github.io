@@ -224,10 +224,11 @@ h3 { color: var(--text); }
 .modal-actions > div { display: flex; gap: 7px; }
 .mode-label { color: var(--muted); font-size: 12px; font-weight: 750; }
 
-.a4-page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; box-shadow: 0 4px 18px rgba(20,25,35,.18); padding: 20mm 10mm 20mm 30mm; color: #111; font-family: "Times New Roman", Times, serif; font-size: 14pt; line-height: 1.35; position: relative; }
+.a4-page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; box-shadow: 0 4px 18px rgba(20,25,35,.18); padding: 20mm 10mm 20mm 30mm; color: #111; font-family: "Times New Roman", Times, serif; font-size: 14pt; line-height: 1.5; position: relative; }
 .a4-page.preprinted { padding-top: var(--preprinted-top, 55mm); }
-.a4-page .letterhead-image { display: block; max-width: 100%; margin: 0 auto 6mm; object-fit: contain; }
-.a4-page .institution { text-align: center; font-weight: 700; margin-bottom: 7mm; }
+.a4-page .letterhead-image { display: block; max-width: 100%; max-height: 60mm; margin: 0 auto 6mm; object-fit: contain; }
+.a4-page .institution { text-align: center; font-weight: 700; margin-bottom: 2mm; }
+.a4-page .institution-code { text-align: center; font-size: 11pt; margin-bottom: 4mm; }
 .a4-page .order-word { text-align: center; font-weight: 700; letter-spacing: .04em; margin-bottom: 4mm; }
 .a4-page .date-number { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 5mm; }
 .a4-page .order-title { text-align: center; font-weight: 700; margin: 0 auto 6mm; max-width: 145mm; }
@@ -237,6 +238,12 @@ h3 { color: var(--text); }
 .a4-page .signature { display: flex; justify-content: space-between; gap: 15mm; margin-top: 14mm; }
 .a4-page .signature span:last-child { text-align: right; white-space: nowrap; }
 .a4-page .placeholder { color: #8a330e; background: #fff2df; padding: 0 2px; }
+.preview-attachment { break-before: page; page-break-before: always; padding-top: 12mm; min-height: 255mm; }
+.appendix-reference { max-width: 85mm; margin: 0 0 6mm auto; text-align: left; font-size: 12pt; }
+.appendix-title { margin-bottom: 6mm; text-align: center; font-weight: 700; }
+.appendix-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12pt; line-height: 1.25; }
+.appendix-table th, .appendix-table td { border: 1px solid #111; padding: 2mm; vertical-align: top; overflow-wrap: anywhere; }
+.appendix-table th { text-align: center; font-weight: 700; }
 
 .toast { position: fixed; right: 16px; bottom: 16px; max-width: 390px; background: #14212c; color: #fff; padding: 11px 13px; border-radius: 7px; border: 1px solid #314354; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .15s ease; z-index: 80; }
 .toast.is-visible { opacity: 1; transform: translateY(0); }

@@ -31,6 +31,7 @@ const NEXT_SCHOOL_YEAR = "2027/2028";
 const text = (id, label, options = {}) => ({ type: "text", id, label, ...options });
 const textarea = (id, label, options = {}) => ({ type: "textarea", id, label, ...options });
 const date = (id, label, options = {}) => ({ type: "date", id, label, ...options });
+const number = (id, label, options = {}) => ({ type: "number", id, label, ...options });
 const person = (id, label, options = {}) => ({ type: "person", id, label, ...options });
 const select = (id, label, optionsList, options = {}) => ({ type: "select", id, label, options: optionsList, ...options });
 const repeatable = (id, label, fields, options = {}) => ({ type: "repeatable", id, label, fields, ...options });
@@ -54,12 +55,53 @@ const baseAdvanced = () => [
   }),
 ];
 
+const LEGAL_SENSITIVE_TEMPLATES = new Set([
+  "pedagogical-workload",
+  "responsible-safety",
+  "student-enrollment",
+  "school-meals",
+  "attestation-commission",
+  "attestation-list-schedule",
+  "winter-safety",
+  "attestation-results",
+  "first-grade-admission",
+  "dpa-exemption",
+  "education-documents",
+  "student-promotion",
+  "preliminary-tariffication",
+]);
+
+const RECORD_SERIES = Object.freeze({
+  "Кадрові": "Кадрові питання",
+  "Учні": "Рух здобувачів освіти",
+  "Адміністративно-господарські": "Адміністративно-господарські питання",
+});
+
 function template(config) {
+  const needsVerification = Boolean(config.needsVerification || LEGAL_SENSITIVE_TEMPLATES.has(config.id));
+  const hasVerificationField = (config.fields || []).some((field) => field.id === "verifiedBasis");
+  const fields = needsVerification && !hasVerificationField
+    ? [...(config.fields || []), textarea("verifiedBasis", "Перевірена чинна нормативна підстава *", {
+        required: true,
+        advanced: true,
+        maxlength: 1600,
+        placeholder: "Назва, дата, номер і чинна редакція акта, перевірені на дату видання наказу",
+        help: "Це поле є журналом юридичної перевірки й не підставляється автоматично в текст наказу.",
+      })]
+    : (config.fields || []);
   return {
     frequency: "Щорічно",
     tags: [],
     months: [],
     ...config,
+    fields,
+    needsVerification,
+    recordSeries: config.recordSeries || RECORD_SERIES[config.category] || "Основна діяльність",
+    legalReview: needsVerification ? {
+      reviewedAt: "2026-08-10",
+      note: "Перед підписанням звірте підставу з чинною редакцією акта та локальною інструкцією з діловодства.",
+      ...(config.legalReview || {}),
+    } : null,
   };
 }
 
@@ -232,9 +274,14 @@ export const ORDER_TEMPLATES = [
     title: "Про створення атестаційної комісії",
     description: "Шаблон для щорічного створення атестаційної комісії.",
     tags: ["атестація", "комісія", "педагоги"],
-    notice: "Для проведення атестації комісію створюють щорічно до 20 вересня. Перевірте актуальну редакцію Положення перед підписанням.",
+    notice: "Комісію І рівня створюють щороку не пізніше 20 вересня у закладі, де працюють 15 і більше педагогічних працівників. Для меншої кількості атестацію проводить комісія ІІ рівня.",
+    legalReview: {
+      source: "Положення про атестацію педагогічних працівників, наказ МОН № 805 від 09.09.2022, редакція від 24.04.2026",
+      sourceUrl: "https://zakon.rada.gov.ua/laws/show/z1649-22",
+    },
     fields: [
       text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      number("employeeCount", "Кількість педагогічних працівників у трудових відносинах із закладом *", { required: true, min: 1, max: 500, default: 15 }),
       repeatable("members", "Склад комісії *", [
         select("role", "Роль *", [
           { value: "Голова комісії", label: "Голова комісії" },
@@ -254,6 +301,21 @@ export const ORDER_TEMPLATES = [
           "Атестаційній комісії організувати роботу відповідно до чинного порядку проведення атестації педагогічних працівників.",
           "Секретарю атестаційної комісії забезпечити оформлення та зберігання документів комісії у встановленому порядку.",
         ], data);
+    },
+    validate(data, model) {
+      const results = [];
+      if (Number(data.employeeCount) < 15) {
+        results.push({
+          level: "error",
+          title: "Заклад не може створити атестаційну комісію І рівня",
+          detail: "За наявності менш ніж 15 педагогічних працівників атестацію проводить комісія ІІ рівня. Не експортуйте цей наказ.",
+        });
+      }
+      const monthDay = String(model.orderDate || "").slice(5).replace("-", "");
+      if (monthDay && monthDay > "0920") {
+        results.push({ level: "warn", title: "Дата наказу пізніша за 20 вересня", detail: "Зафіксуйте причину порушення строку та перевірте подальші дії за чинним Положенням." });
+      }
+      return results;
     },
   }),
   template({
@@ -339,16 +401,36 @@ export const ORDER_TEMPLATES = [
     fields: [
       text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
       text("attachmentName", "Назва додатка", { default: "список педагогічних працівників, які підлягають черговій атестації, строки проведення атестації та графік засідань атестаційної комісії", maxlength: 500 }),
+      repeatable("employees", "Педагогічні працівники, які підлягають черговій атестації *", [
+        person("person", "ПІБ працівника *", { required: true, maxlength: 220 }),
+        date("attestationDate", "Строк / дата атестації *", { required: true }),
+      ], { required: true, minItems: 1, maxItems: 200 }),
+      repeatable("meetings", "Графік засідань атестаційної комісії *", [
+        date("meetingDate", "Дата засідання *", { required: true }),
+        text("agenda", "Питання / етап роботи *", { required: true, maxlength: 500 }),
+      ], { required: true, minItems: 1, maxItems: 50 }),
       ...baseAdvanced(),
     ],
     build(data) {
-      return finish(this.title,
+      const order = finish(this.title,
         withBasis(`З метою організації чергової атестації педагогічних працівників у ${clean(data.schoolYear)} навчальному році`, data.basis),
         [
           `Затвердити ${clean(data.attachmentName)} (додається).`,
           "Секретарю атестаційної комісії забезпечити своєчасне ознайомлення педагогічних працівників з інформацією, що стосується проходження ними атестації.",
           "Атестаційній комісії забезпечити дотримання затверджених строків і графіка роботи.",
         ], data);
+      return {
+        ...order,
+        attachments: [{
+          title: clean(data.attachmentName),
+          columns: ["№ з/п", "Педагогічний працівник", "Строк атестації"],
+          rows: (data.employees || []).map((employee, index) => [String(index + 1), clean(employee.person), formatDateUa(employee.attestationDate)]),
+        }, {
+          title: "Графік засідань атестаційної комісії",
+          columns: ["№ з/п", "Дата засідання", "Питання / етап роботи"],
+          rows: (data.meetings || []).map((meeting, index) => [String(index + 1), formatDateUa(meeting.meetingDate), clean(meeting.agenda)]),
+        }],
+      };
     },
   }),
   template({
@@ -449,7 +531,11 @@ export const ORDER_TEMPLATES = [
     title: "Про результати атестації педагогічних працівників",
     description: "Каркас наказу за рішенням атестаційної комісії. Рішення комісії потрібно перенести без зміни змісту.",
     tags: ["атестація", "результати", "педагоги"],
-    notice: "Наказ за результатами атестації видають на підставі рішення атестаційної комісії. Перевірте формулювання рішення перед підписанням.",
+    notice: "Наказ видають не пізніше 7 робочих днів від рішення; працівника ознайомлюють і наказ передають до бухгалтерії впродовж 3 робочих днів від видання.",
+    legalReview: {
+      source: "Положення про атестацію педагогічних працівників, наказ МОН № 805 від 09.09.2022, редакція від 24.04.2026",
+      sourceUrl: "https://zakon.rada.gov.ua/laws/show/z1649-22",
+    },
     fields: [
       textarea("decision", "Рішення атестаційної комісії *", { required: true, maxlength: 2500, placeholder: "Стисло перенесіть рішення комісії щодо працівника/працівників" }),
       date("decisionDate", "Дата рішення комісії *", { required: true }),
@@ -460,8 +546,19 @@ export const ORDER_TEMPLATES = [
       const protocol = clean(data.protocolNumber) ? `, протокол № ${clean(data.protocolNumber)}` : "";
       return finish(this.title,
         withBasis(`На підставі рішення атестаційної комісії від ${formatDateUa(data.decisionDate)}${protocol}`, data.basis),
-        [normalizeSentence(data.decision), "Відповідальним працівникам забезпечити виконання рішення атестаційної комісії та оформлення відповідних документів."],
+        [
+          normalizeSentence(data.decision),
+          "Відповідальній особі ознайомити педагогічного працівника з цим наказом під підпис упродовж трьох робочих днів із дати його видання.",
+          "Подати цей наказ до бухгалтерії закладу освіти або централізованої бухгалтерії впродовж трьох робочих днів із дня його видання для нарахування заробітної плати та проведення відповідного перерахунку.",
+        ],
         data);
+    },
+    validate(data, model) {
+      const elapsed = workingDaysBetween(data.decisionDate, model.orderDate);
+      if (elapsed === null) return [];
+      if (elapsed < 0) return [{ level: "error", title: "Дата наказу передує рішенню атестаційної комісії" }];
+      if (elapsed > 7) return [{ level: "error", title: "Перевищено 7-денний строк видання наказу", detail: `Між рішенням і датою наказу минуло ${elapsed} робочих днів.` }];
+      return [];
     },
   }),
   template({
@@ -662,6 +759,7 @@ export const ORDER_TEMPLATES = [
     tags: ["затвердження", "додаток", "універсальний"],
     fields: [
       text("documentName", "Назва документа *", { required: true, maxlength: 300, placeholder: "Положення про ..." }),
+      textarea("documentText", "Текст документа, що додається *", { required: true, maxlength: 20000, placeholder: "Вставте повний текст положення, плану, графіка чи іншого документа. Кожен абзац починайте з нового рядка." }),
       date("effectiveDate", "Дата введення в дію", {}),
       person("responsible", "Відповідальний за виконання / ознайомлення", { maxlength: 220 }),
       ...baseAdvanced(),
@@ -670,7 +768,14 @@ export const ORDER_TEMPLATES = [
       const effective = clean(data.effectiveDate) ? ` та ввести його в дію з ${formatDateUa(data.effectiveDate)}` : "";
       const points = [`Затвердити ${clean(data.documentName)}${effective} (додається).`];
       if (clean(data.responsible)) points.push(`Виконання документа та ознайомлення заінтересованих осіб забезпечити: ${clean(data.responsible)}.`);
-      return finish(`Про затвердження ${lowerFirst(clean(data.documentName)) || "документа"}`, withBasis(`З метою впорядкування роботи закладу та введення в дію ${lowerFirst(clean(data.documentName)) || "відповідного документа"}`, data.basis), points, data);
+      const order = finish(`Про затвердження ${lowerFirst(clean(data.documentName)) || "документа"}`, withBasis(`З метою впорядкування роботи закладу та введення в дію ${lowerFirst(clean(data.documentName)) || "відповідного документа"}`, data.basis), points, data);
+      return {
+        ...order,
+        attachments: [{
+          title: clean(data.documentName),
+          paragraphs: String(data.documentText || "").split(/\r?\n/).map(clean).filter(Boolean),
+        }],
+      };
     },
   }),
   template({
@@ -709,6 +814,21 @@ function withBasis(sentence, basis) {
   const base = endingDot(sentence);
   const b = endingDot(basis);
   return b ? `${base}, з урахуванням ${lowerFirst(b)}.` : `${base}.`;
+}
+
+function workingDaysBetween(startValue, endValue) {
+  const start = new Date(`${clean(startValue)}T00:00:00`);
+  const end = new Date(`${clean(endValue)}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  if (end < start) return -1;
+  let count = 0;
+  const cursor = new Date(start);
+  while (cursor < end) {
+    cursor.setDate(cursor.getDate() + 1);
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) count += 1;
+  }
+  return count;
 }
 
 export function clean(value) {

@@ -16,7 +16,7 @@ export function verifyGeneratedDocx(model, letterheadAsset = null) {
     return { ok: false, errors: [`Помилка побудови DOCX: ${error.message || error}`], warnings, bytes: null, files: null };
   }
 
-  const required = ["[Content_Types].xml", "_rels/.rels", "word/document.xml", "word/styles.xml", "word/_rels/document.xml.rels"];
+  const required = ["[Content_Types].xml", "_rels/.rels", "word/document.xml", "word/styles.xml", "word/numbering.xml", "word/header1.xml", "word/_rels/document.xml.rels"];
   for (const name of required) if (!files.has(name)) errors.push(`У DOCX відсутній обов’язковий файл: ${name}`);
 
   const documentXmlBytes = files.get("word/document.xml");
@@ -25,6 +25,19 @@ export function verifyGeneratedDocx(model, letterheadAsset = null) {
   if (!documentText.includes(xmlEscape(model.title))) errors.push("Заголовок наказу не потрапив до DOCX.");
   if (!documentText.includes(xmlEscape(model.signerName))) errors.push("ПІБ підписанта не потрапив до DOCX.");
   if (containsPlaceholder(documentText)) errors.push("У сформованому DOCX залишилися службові заповнювачі.");
+  if (model.points?.length && (!documentText.includes("<w:numPr>") || /<w:t[^>]*>\s*1\.\s/u.test(documentText))) errors.push("Пункти наказу не оформлено штатною нумерацією Word.");
+
+  const numberingText = new TextDecoder().decode(files.get("word/numbering.xml") || new Uint8Array());
+  if (!numberingText.includes("<w:abstractNum") || !numberingText.includes('w:numFmt w:val="decimal"')) errors.push("Некоректна схема нумерації Word.");
+  const headerText = new TextDecoder().decode(files.get("word/header1.xml") || new Uint8Array());
+  if (!headerText.includes("PAGE") || !documentText.includes("<w:titlePg/>") || !documentText.includes("headerReference")) errors.push("Не налаштовано нумерацію сторінок у верхньому полі, починаючи з другої.");
+  const expectedSections = Math.max(1, (model.attachments || []).length + 1);
+  const sectionStarts = (documentText.match(/<w:pgNumType w:start="1"\/>/g) || []).length;
+  if (sectionStarts !== expectedSections) errors.push("Документ і додатки не мають окремої нумерації сторінок.");
+
+  for (const attachment of model.attachments || []) {
+    if (attachment.title && !documentText.includes(xmlEscape(attachment.title))) errors.push(`Додаток «${attachment.title}» не потрапив до DOCX.`);
+  }
 
   if (model.letterheadMode === "image") {
     const hasMedia = [...files.keys()].some((name) => name.startsWith("word/media/letterhead."));
@@ -52,7 +65,9 @@ export function buildDocxFiles(model, letterheadAsset = null) {
   files.set("docProps/app.xml", textBytes(appPropsXml()));
   files.set("word/document.xml", textBytes(documentXml(model, imageInfo)));
   files.set("word/styles.xml", textBytes(stylesXml()));
+  files.set("word/numbering.xml", textBytes(numberingXml()));
   files.set("word/settings.xml", textBytes(settingsXml()));
+  files.set("word/header1.xml", textBytes(headerXml()));
   files.set("word/_rels/document.xml.rels", textBytes(documentRelsXml(imageInfo)));
 
   if (imageInfo) files.set(`word/media/${imageInfo.fileName}`, imageInfo.bytes);
@@ -74,7 +89,7 @@ export function downloadDocx(model, letterheadAsset = null) {
   const blob = new Blob([verification.bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
   const date = model.orderDate ? formatDateUa(model.orderDate).replaceAll(".", "-") : "bez-daty";
   const no = model.orderNumber ? `_${sanitizeFilename(model.orderNumber, "")}` : "";
-  const title = sanitizeFilename(model.title.replace(/^Про\s+/u, ""), "nakaz");
+  const title = sanitizeFilename(model.title.replace(/^Про(?:\s+|$)/u, ""), "nakaz");
   triggerDownload(blob, `${date}${no}_${title}.docx`);
   return verification;
 }
@@ -107,7 +122,9 @@ function contentTypesXml(imageInfo) {
 ${imageDefault}
 <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
 <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
 <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
+<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>`;
@@ -130,6 +147,8 @@ function documentRelsXml(imageInfo) {
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 <Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+<Relationship Id="rIdNumbering" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+<Relationship Id="rIdHeader" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
 ${imageRel}
 </Relationships>`;
 }
@@ -162,12 +181,41 @@ function stylesXml() {
   <w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="360" w:lineRule="auto"/></w:pPr></w:pPrDefault>
 </w:docDefaults>
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="28"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderInstitution"><w:name w:val="Order Institution"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="200"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderInstitutionCode"><w:name w:val="Order Institution Code"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="200"/></w:pPr><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderLetterhead"><w:name w:val="Order Letterhead"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="180"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderWord"><w:name w:val="Order Word"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="180"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderTitle"><w:name w:val="Order Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="300"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderBody"><w:name w:val="Order Body"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="both"/><w:spacing w:after="180" w:line="360" w:lineRule="auto"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderPreamble"><w:name w:val="Order Preamble"/><w:basedOn w:val="OrderBody"/><w:pPr><w:ind w:firstLine="567"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderCommand"><w:name w:val="Order Command"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="160"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderPoint"><w:name w:val="Order Point"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="both"/><w:spacing w:after="140" w:line="360" w:lineRule="auto"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderMeta"><w:name w:val="Order Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="center" w:pos="4500"/><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:after="240"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderSignature"><w:name w:val="Order Signature"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:before="480" w:after="0"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="AppendixTitle"><w:name w:val="Appendix Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="AppendixReference"><w:name w:val="Appendix Reference"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="right"/><w:spacing w:after="0"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="AppendixReferenceLast"><w:name w:val="Appendix Reference Last"/><w:basedOn w:val="AppendixReference"/><w:pPr><w:spacing w:after="240"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="TableHeader"><w:name w:val="Table Header"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:rPr><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="TableBody"><w:name w:val="Table Body"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 </w:styles>`;
+}
+
+function numberingXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="left"/><w:pPr><w:tabs><w:tab w:val="num" w:pos="567"/></w:tabs><w:ind w:left="567" w:hanging="567"/></w:pPr></w:lvl></w:abstractNum>
+<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>
+</w:numbering>`;
+}
+
+function headerXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:fldSimple w:instr=" PAGE "><w:r><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>2</w:t></w:r></w:fldSimple></w:p></w:hdr>`;
 }
 
 function settingsXml() {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:zoom w:percent="100"/><w:defaultTabStop w:val="720"/><w:characterSpacingControl w:val="doNotCompress"/></w:settings>`;
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:zoom w:percent="100"/><w:defaultTabStop w:val="720"/><w:characterSpacingControl w:val="doNotCompress"/><w:updateFields w:val="true"/></w:settings>`;
 }
 
 function documentXml(model, imageInfo) {
@@ -182,28 +230,46 @@ function documentXml(model, imageInfo) {
 
   if (imageInfo) body.push(imageParagraphXml(imageInfo));
   if (model.letterheadMode === "standard") {
-    body.push(paragraphXml(model.institutionName || "[Назва закладу]", { align: "center", bold: true, after: 240 }));
-    if (model.edrpou) body.push(paragraphXml(`Код ЄДРПОУ ${model.edrpou}`, { align: "center", size: 22, after: 200 }));
+    body.push(paragraphXml(model.institutionName || "[Назва закладу]", { style: "OrderInstitution" }));
+    if (model.edrpou) body.push(paragraphXml(`Код ЄДРПОУ ${model.edrpou}`, { style: "OrderInstitutionCode" }));
   }
 
-  body.push(paragraphXml("НАКАЗ", { align: "center", bold: true, after: 180 }));
+  body.push(paragraphXml("НАКАЗ", { style: "OrderWord" }));
   body.push(dateNumberPlaceXml(model));
-  body.push(paragraphXml(model.title || "Про …", { align: "center", bold: true, after: 300 }));
-  body.push(paragraphXml(model.preamble || "[Преамбула]", { align: "both", firstLineMm: 10, after: 180 }));
-  body.push(paragraphXml("НАКАЗУЮ:", { bold: true, after: 160 }));
-  model.points.forEach((point, index) => body.push(numberedParagraphXml(index + 1, point)));
+  body.push(paragraphXml(model.title || "Про …", { style: "OrderTitle" }));
+  body.push(paragraphXml(model.preamble || "[Преамбула]", { style: "OrderPreamble" }));
+  body.push(paragraphXml("НАКАЗУЮ:", { style: "OrderCommand" }));
+  model.points.forEach((point) => body.push(numberedParagraphXml(point)));
   body.push(signatureXml(model));
+  const attachments = model.attachments || [];
+  if (attachments.length) {
+    body.push(sectionBreakParagraphXml(topTwip, pageWidth, pageHeight, leftTwip, rightTwip, bottomTwip));
+    attachments.forEach((attachment, index) => {
+      body.push(attachmentXml(attachment, index + 1, model));
+      if (index < attachments.length - 1) body.push(sectionBreakParagraphXml(mmToTwip(20), pageWidth, pageHeight, leftTwip, rightTwip, bottomTwip));
+    });
+  }
+  const finalTopTwip = attachments.length ? mmToTwip(20) : topTwip;
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
 <w:body>
 ${body.join("\n")}
-<w:sectPr><w:pgSz w:w="${pageWidth}" w:h="${pageHeight}"/><w:pgMar w:top="${topTwip}" w:right="${rightTwip}" w:bottom="${bottomTwip}" w:left="${leftTwip}" w:header="0" w:footer="0" w:gutter="0"/><w:cols w:space="708"/></w:sectPr>
+${sectionPropertiesXml(finalTopTwip, pageWidth, pageHeight, leftTwip, rightTwip, bottomTwip, false)}
 </w:body></w:document>`;
+}
+
+function sectionBreakParagraphXml(topTwip, pageWidth, pageHeight, leftTwip, rightTwip, bottomTwip) {
+  return `<w:p><w:pPr>${sectionPropertiesXml(topTwip, pageWidth, pageHeight, leftTwip, rightTwip, bottomTwip, true)}</w:pPr></w:p>`;
+}
+
+function sectionPropertiesXml(topTwip, pageWidth, pageHeight, leftTwip, rightTwip, bottomTwip, nextPage) {
+  return `<w:sectPr><w:headerReference w:type="default" r:id="rIdHeader"/>${nextPage ? '<w:type w:val="nextPage"/>' : ""}<w:pgSz w:w="${pageWidth}" w:h="${pageHeight}"/><w:pgMar w:top="${topTwip}" w:right="${rightTwip}" w:bottom="${bottomTwip}" w:left="${leftTwip}" w:header="720" w:footer="0" w:gutter="0"/><w:pgNumType w:start="1"/><w:cols w:space="708"/><w:titlePg/></w:sectPr>`;
 }
 
 function paragraphXml(text, opts = {}) {
   const pPr = [];
+  if (opts.style) pPr.push(`<w:pStyle w:val="${xmlEscape(opts.style)}"/>`);
   if (opts.align) pPr.push(`<w:jc w:val="${opts.align}"/>`);
   if (opts.firstLineMm) pPr.push(`<w:ind w:firstLine="${mmToTwip(opts.firstLineMm)}"/>`);
   if (opts.after !== undefined) pPr.push(`<w:spacing w:after="${opts.after}" w:line="360" w:lineRule="auto"/>`);
@@ -222,24 +288,48 @@ function dateNumberPlaceXml(model) {
   const date = model.orderDate ? formatDateUa(model.orderDate) : "[дата]";
   const place = model.location || "[місце]";
   const number = model.orderNumber ? `№ ${model.orderNumber}` : "№ ____";
-  return `<w:p><w:pPr><w:tabs><w:tab w:val="center" w:pos="4500"/><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:after="240"/></w:pPr>
+  return `<w:p><w:pPr><w:pStyle w:val="OrderMeta"/></w:pPr>
 <w:r><w:t>${xmlEscape(date)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(place)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(number)}</w:t></w:r></w:p>`;
 }
 
-function numberedParagraphXml(index, text) {
-  const prefix = `${index}. `;
-  return `<w:p><w:pPr><w:ind w:left="${mmToTwip(10)}" w:hanging="${mmToTwip(10)}"/><w:jc w:val="both"/><w:spacing w:after="140" w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(prefix + text)}</w:t></w:r></w:p>`;
+function numberedParagraphXml(text) {
+  return `<w:p><w:pPr><w:pStyle w:val="OrderPoint"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
 }
 
 function signatureXml(model) {
   const position = model.signerPosition || "[Посада]";
   const name = model.signerName || "[ПІБ]";
-  return `<w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:before="480" w:after="0"/></w:pPr><w:r><w:t>${xmlEscape(position)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(name)}</w:t></w:r></w:p>`;
+  return `<w:p><w:pPr><w:pStyle w:val="OrderSignature"/></w:pPr><w:r><w:t>${xmlEscape(position)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(name)}</w:t></w:r></w:p>`;
+}
+
+function attachmentXml(attachment, index, model) {
+  const parts = [
+    paragraphXml(`Додаток ${index}`, { style: "AppendixReference" }),
+    paragraphXml(`до наказу від ${model.orderDate ? formatDateUa(model.orderDate) : "___"} № ${model.orderNumber || "___"}`, { style: "AppendixReferenceLast" }),
+    paragraphXml(attachment.title || `Додаток ${index}`, { style: "AppendixTitle" }),
+  ];
+  if (attachment.note) parts.push(paragraphXml(attachment.note, { style: "OrderBody" }));
+  (attachment.paragraphs || []).forEach((text) => parts.push(paragraphXml(text, { style: "OrderPreamble" })));
+  if ((attachment.columns || []).length && (attachment.rows || []).length) parts.push(tableXml(attachment.columns, attachment.rows));
+  return parts.join("\n");
+}
+
+function tableXml(columns, rows) {
+  const count = Math.max(1, columns.length);
+  const totalWidth = 9638;
+  const cellWidth = Math.floor(totalWidth / count);
+  const widths = columns.map((_, index) => index === columns.length - 1 ? totalWidth - cellWidth * (count - 1) : cellWidth);
+  const grid = widths.map((width) => `<w:gridCol w:w="${width}"/>`).join("");
+  const rowXml = (cells, header = false) => `<w:tr>${header ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${columns.map((_, index) => {
+    const value = cells[index] || "";
+    return `<w:tc><w:tcPr><w:tcW w:w="${widths[index]}" w:type="dxa"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:start w:w="120" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:end w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>${paragraphXml(value, { style: header ? "TableHeader" : "TableBody" })}</w:tc>`;
+  }).join("")}</w:tr>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="${totalWidth}" w:type="dxa"/><w:tblInd w:w="120" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="000000"/><w:left w:val="single" w:sz="4" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:color="000000"/><w:right w:val="single" w:sz="4" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:color="000000"/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rowXml(columns, true)}${rows.map((row) => rowXml(row)).join("")}</w:tbl>`;
 }
 
 function imageParagraphXml(imageInfo) {
   const { cx, cy } = imageInfo;
-  return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="180"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="1" name="Фірмовий бланк"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="letterhead.${imageInfo.extension}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdLetterhead"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+  return `<w:p><w:pPr><w:pStyle w:val="OrderLetterhead"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="1" name="Фірмовий бланк" descr="${xmlEscape(imageInfo.alt)}" title="Фірмовий бланк"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="letterhead.${imageInfo.extension}" descr="${xmlEscape(imageInfo.alt)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdLetterhead"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 }
 
 function normalizeImageAsset(asset, widthMm) {
@@ -247,8 +337,14 @@ function normalizeImageAsset(asset, widthMm) {
   const extension = mime === "image/jpeg" ? "jpg" : "png";
   const w = Number(asset.width) || 1;
   const h = Number(asset.height) || 1;
-  const safeWidthMm = Math.min(180, Math.max(80, Number(widthMm) || 170));
-  const safeHeightMm = safeWidthMm * (h / w);
+  let safeWidthMm = Math.min(180, Math.max(80, Number(widthMm) || 170));
+  let safeHeightMm = safeWidthMm * (h / w);
+  const maxHeightMm = 60;
+  if (safeHeightMm > maxHeightMm) {
+    const scale = maxHeightMm / safeHeightMm;
+    safeWidthMm *= scale;
+    safeHeightMm = maxHeightMm;
+  }
   return {
     bytes: asset.bytes instanceof Uint8Array ? asset.bytes : new Uint8Array(asset.bytes),
     mime,
@@ -256,6 +352,7 @@ function normalizeImageAsset(asset, widthMm) {
     fileName: `letterhead.${extension}`,
     cx: mmToEmu(safeWidthMm),
     cy: mmToEmu(safeHeightMm),
+    alt: `Фірмовий бланк закладу освіти, файл ${String(asset.name || "letterhead").slice(0, 120)}`,
   };
 }
 

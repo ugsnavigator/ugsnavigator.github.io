@@ -19,6 +19,8 @@ const state = {
   savedOrderId: "",
   savedOrders: [],
   savedSearch: "",
+  editorDirty: false,
+  modalReturnFocus: null,
 };
 
 const el = (id) => document.getElementById(id);
@@ -105,12 +107,18 @@ function runStartupSelfCheck() {
 function bindNavigation() {
   document.querySelectorAll(".nav-btn").forEach((button) => button.addEventListener("click", () => {
     const name = button.dataset.view;
+    if (!confirmLeaveEditor()) return;
     if (name === "orders") showCatalog();
     if (name === "saved") void refreshSavedOrders();
     setView(name);
   }));
-  el("go-profile").addEventListener("click", () => setView("profile"));
+  el("go-profile").addEventListener("click", () => { if (confirmLeaveEditor()) setView("profile"); });
   el("back-to-orders").addEventListener("click", () => { showCatalog(); setView("orders"); });
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.editorDirty) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
 }
 
 function setView(name) {
@@ -143,18 +151,20 @@ function bindCatalogActions() {
 }
 
 function bindEditorActions() {
-  el("back-to-catalog").addEventListener("click", showCatalog);
+  el("back-to-catalog").addEventListener("click", () => { if (confirmLeaveEditor()) showCatalog(); });
   el("reset-draft").addEventListener("click", () => {
     if (!state.template) return;
+    if (!confirm("Очистити всі введені поля цього наказу та повернути початкові значення шаблону?")) return;
     state.formData = defaultFormData(state.template);
     state.orderMeta = { orderDate: todayIso(), orderNumber: "" };
+    state.editorDirty = true;
     renderEditor();
     toast("Поля повернуто до стандартних значень шаблону.");
   });
   el("preview-order").addEventListener("click", openPreview);
   el("save-order").addEventListener("click", () => void saveCurrentOrder());
-  el("download-docx").addEventListener("click", attemptDownload);
-  el("print-order").addEventListener("click", attemptPrint);
+  el("download-docx").addEventListener("click", () => openPreview("download"));
+  el("print-order").addEventListener("click", () => openPreview("print"));
   el("modal-download").addEventListener("click", attemptDownload);
   el("modal-print").addEventListener("click", attemptPrint);
 }
@@ -178,9 +188,12 @@ function bindSavedOrderActions() {
     if (file.size > 8 * 1024 * 1024) { toast("JSON завеликий. Максимум 8 МБ."); return; }
     try {
       const parsed = JSON.parse(await file.text());
-      const count = await importOrderRecords(parsed?.orders || parsed);
+      if (parsed?.kind !== "school-order-constructor-orders" || parsed?.version !== 1 || !Array.isArray(parsed?.orders)) {
+        throw new Error("Файл не є підтримуваною резервною копією наказів версії 1.");
+      }
+      const count = await importOrderRecords(parsed.orders);
       await refreshSavedOrders();
-      toast(`Імпортовано: ${count}.`);
+      toast(count ? `Імпортовано нових або новіших записів: ${count}.` : "Новіших записів для імпорту немає.");
     } catch (error) {
       console.error(error);
       toast("Не вдалося імпортувати збережені накази.");
@@ -211,6 +224,7 @@ async function saveCurrentOrder() {
     model,
     profile: state.profile,
     letterheadAsset: state.letterheadAsset,
+    allowDraft: true,
   });
   const existing = state.savedOrderId ? state.savedOrders.find((x) => x.id === state.savedOrderId) : null;
   const now = new Date().toISOString();
@@ -221,7 +235,7 @@ async function saveCurrentOrder() {
     category: state.template.category,
     orderDate: state.orderMeta.orderDate,
     orderNumber: state.orderMeta.orderNumber,
-    status: validation.hasErrors ? "draft" : "ready",
+    status: validation.hasErrors || validation.results.some((result) => result.level === "warn") ? "draft" : "ready",
     createdAt: existing?.createdAt || now,
     updatedAt: now,
     formData: cloneJson(state.formData),
@@ -229,9 +243,14 @@ async function saveCurrentOrder() {
   try {
     const saved = await saveOrderRecord(record);
     state.savedOrderId = saved.id;
+    state.editorDirty = false;
     await refreshSavedOrders(false);
     renderEditor();
-    toast(saved.status === "ready" ? "Наказ збережено." : "Збережено як чернетку: є незаповнені обов’язкові дані.");
+    toast(saved.status === "ready"
+      ? "Наказ збережено."
+      : validation.hasErrors
+        ? "Збережено як чернетку: є незаповнені або некоректні обов’язкові дані."
+        : "Збережено як чернетку: залишилися попередження для перевірки.");
   } catch (error) {
     console.error(error);
     toast("Не вдалося зберегти наказ у цьому браузері.");
@@ -307,6 +326,7 @@ function openSavedOrder(record, asCopy) {
     orderDate: asCopy ? todayIso() : (record.orderDate || todayIso()),
     orderNumber: asCopy ? "" : (record.orderNumber || ""),
   };
+  state.editorDirty = false;
   renderEditor();
   ui.catalogView.classList.add("is-hidden");
   ui.editorView.classList.remove("is-hidden");
@@ -333,7 +353,16 @@ function bindModalActions() {
     if (event.target?.dataset?.closeModal === "true") closePreview();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !ui.previewModal.classList.contains("is-hidden")) closePreview();
+    if (ui.previewModal.classList.contains("is-hidden")) return;
+    if (event.key === "Escape") { closePreview(); return; }
+    if (event.key !== "Tab") return;
+    const focusable = [...ui.previewModal.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+      .filter((node) => !node.hidden && node.getClientRects().length);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   });
 }
 
@@ -342,15 +371,28 @@ function bindProfileActions() {
     event.preventDefault();
     const fd = new FormData(ui.profileForm);
     const candidate = { ...Object.fromEntries(fd.entries()), staff: collectStaffFromEditor() };
-    state.profile = saveProfile(candidate);
+    try {
+      state.profile = saveProfile(candidate);
+    } catch (error) {
+      console.error(error);
+      toast(error.message || "Не вдалося зберегти налаштування у цьому браузері.");
+      return;
+    }
 
+    let persistenceWarning = "";
     if (state.profile.letterheadMode === "image") {
       if (ui.rememberLetterhead.checked && state.letterheadAsset) {
         try { await saveLetterheadAsset(state.letterheadAsset); }
-        catch { toast("Налаштування збережено, але браузер не дозволив запам’ятати зображення бланка."); }
+        catch { persistenceWarning = " Браузер не дозволив запам’ятати зображення бланка."; }
       } else {
-        try { await deleteLetterheadAsset(); } catch { /* ignore unavailable IndexedDB */ }
+        try { await deleteLetterheadAsset(); }
+        catch { if (typeof indexedDB !== "undefined") persistenceWarning = " Браузер не підтвердив видалення попереднього зображення бланка."; }
       }
+    } else {
+      try { await deleteLetterheadAsset(); }
+      catch { if (typeof indexedDB !== "undefined") persistenceWarning = " Браузер не підтвердив видалення попереднього зображення бланка."; }
+      clearLetterheadAsset();
+      ui.rememberLetterhead.checked = false;
     }
 
     populateProfileForm();
@@ -358,7 +400,7 @@ function bindProfileActions() {
     renderStaffDatalist();
     renderProfileNudge();
     updateProfileWarning();
-    toast("Налаштування збережено.");
+    toast(`Налаштування збережено.${persistenceWarning}`);
   });
 
   ui.profileForm.addEventListener("change", updateLetterheadOptionsFromForm);
@@ -380,7 +422,13 @@ function bindProfileActions() {
 
   el("clear-local-data").addEventListener("click", async () => {
     if (!confirm("Видалити профіль закладу, фірмовий бланк і всі збережені накази з цього браузера? Цю дію не можна скасувати.")) return;
-    await clearAllLocalData();
+    try {
+      await clearAllLocalData();
+    } catch (error) {
+      console.error(error);
+      toast(error.message || "Не всі локальні дані вдалося видалити.");
+      return;
+    }
     state.profile = { ...DEFAULT_PROFILE, staff: [] };
     state.savedOrders = [];
     state.savedOrderId = "";
@@ -398,7 +446,9 @@ function bindProfileActions() {
 
 async function exportProfileBackup() {
   const fd = new FormData(ui.profileForm);
-  state.profile = saveProfile({ ...Object.fromEntries(fd.entries()), staff: collectStaffFromEditor() });
+  state.profile = sanitizeProfile({ ...Object.fromEntries(fd.entries()), staff: collectStaffFromEditor() });
+  try { saveProfile(state.profile); }
+  catch (error) { console.warn("Profile backup exported without local persistence:", error); }
   let letterhead = null;
   if (state.letterheadAsset?.bytes?.length) {
     letterhead = {
@@ -420,28 +470,53 @@ async function importProfileBackup(event) {
   if (file.size > 4 * 1024 * 1024) { toast("JSON завеликий. Максимум 4 МБ."); return; }
   try {
     const parsed = JSON.parse(await file.text());
-    state.profile = saveProfile(sanitizeProfile(parsed?.profile || parsed));
+    if (parsed?.kind !== "school-order-constructor-profile" || parsed?.version !== 3 || !parsed?.profile) {
+      throw new Error("Файл не є підтримуваною резервною копією профілю версії 3.");
+    }
+    const importedProfile = sanitizeProfile(parsed.profile);
+    let importedLetterhead = null;
     if (parsed?.letterhead?.bytesBase64) {
       const bytes = base64ToBytes(parsed.letterhead.bytesBase64);
       const check = validateImageFileBytes(bytes, parsed.letterhead.mime);
       if (!check.ok) throw new Error("Зображення бланка у JSON не пройшло перевірку.");
       const dims = await decodeImageDimensions(bytes, check.mime);
-      setLetterheadAsset({
+      importedLetterhead = {
         bytes,
         mime: check.mime,
         width: dims.width,
         height: dims.height,
         name: String(parsed.letterhead.name || "letterhead").slice(0, 120),
-      });
+      };
+    }
+
+    state.profile = saveProfile(importedProfile);
+    let persistenceWarning = "";
+    if (importedLetterhead) {
+      setLetterheadAsset(importedLetterhead);
       ui.rememberLetterhead.checked = true;
-      try { await saveLetterheadAsset(state.letterheadAsset); } catch { /* still usable in current tab */ }
+      try { await saveLetterheadAsset(state.letterheadAsset); }
+      catch (error) {
+        console.error(error);
+        ui.rememberLetterhead.checked = false;
+        persistenceWarning = " Профіль збережено, але зображення бланка доступне лише в цій вкладці.";
+      }
+    } else {
+      clearLetterheadAsset();
+      ui.rememberLetterhead.checked = false;
+      try { await deleteLetterheadAsset(); }
+      catch (error) {
+        if (typeof indexedDB !== "undefined") {
+          console.error(error);
+          persistenceWarning = " Профіль імпортовано, але браузер не підтвердив видалення попереднього зображення бланка.";
+        }
+      }
     }
     populateProfileForm();
     renderStaffEditor();
     renderStaffDatalist();
     renderProfileNudge();
     updateProfileWarning();
-    toast("Налаштування імпортовано.");
+    toast(`Налаштування імпортовано.${persistenceWarning}`);
   } catch (error) {
     console.error(error);
     toast("Не вдалося імпортувати JSON.");
@@ -450,7 +525,8 @@ async function importProfileBackup(event) {
 
 function renderCategorySelect() {
   ui.categoryFilter.replaceChildren();
-  ["Усі", ...TEMPLATE_CATEGORIES.filter((category) => category !== "Універсальні")].forEach((category) => {
+  const populatedCategories = new Set(ORDER_TEMPLATES.map((template) => template.category));
+  ["Усі", ...TEMPLATE_CATEGORIES.filter((category) => category !== "Універсальні" && populatedCategories.has(category))].forEach((category) => {
     const option = document.createElement("option");
     option.value = category;
     option.textContent = category;
@@ -465,7 +541,10 @@ function renderMonthNav() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "month-button";
-    button.classList.toggle("is-active", month.id === state.selectedMonth && !state.showAll && !clean(state.search));
+    const isActive = month.id === state.selectedMonth && !state.showAll && !clean(state.search);
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-label", `Показати шаблони на ${month.name.toLocaleLowerCase("uk-UA")}`);
+    button.setAttribute("aria-pressed", String(isActive));
     const short = document.createElement("span"); short.className = "month-short"; short.textContent = month.short;
     const full = document.createElement("span"); full.className = "month-full"; full.textContent = month.name;
     button.append(short, full);
@@ -562,6 +641,7 @@ function selectTemplate(t) {
   state.savedOrderId = "";
   state.formData = defaultFormData(t);
   state.orderMeta = { orderDate: todayIso(), orderNumber: "" };
+  state.editorDirty = false;
   renderEditor();
   ui.catalogView.classList.add("is-hidden");
   ui.editorView.classList.remove("is-hidden");
@@ -580,8 +660,19 @@ function renderEditor() {
   ui.templateCategory.textContent = state.template.category;
   ui.templateTitle.textContent = state.template.title;
   ui.templateDescription.textContent = state.template.description;
-  ui.templateNotice.textContent = state.template.notice || "";
-  ui.templateNotice.classList.toggle("is-hidden", !state.template.notice);
+  ui.templateNotice.replaceChildren();
+  const noticeText = [state.template.notice, state.template.legalReview?.source].filter(Boolean).join(" Перевірено в сервісі: ");
+  if (noticeText) ui.templateNotice.append(document.createTextNode(noticeText));
+  if (state.template.legalReview?.sourceUrl) {
+    const link = document.createElement("a");
+    link.href = state.template.legalReview.sourceUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.className = "text-link";
+    link.textContent = " Відкрити офіційний акт";
+    ui.templateNotice.appendChild(link);
+  }
+  ui.templateNotice.classList.toggle("is-hidden", !noticeText && !state.template.legalReview?.sourceUrl);
   renderEditorBadges();
   renderOrderForm();
   updateProfileWarning();
@@ -592,6 +683,7 @@ function renderEditorBadges() {
   ui.editorBadges.replaceChildren();
   const items = [
     state.template.frequency,
+    `Серія: ${state.template.recordSeries || "Основна діяльність"}`,
     state.template.months?.length ? state.template.months.map(monthShortById).join(" · ") : "У будь-який час",
   ];
   items.forEach((textValue) => {
@@ -604,8 +696,8 @@ function renderOrderForm() {
 
   const primary = document.createElement("div");
   primary.className = "form-grid two-col form-section";
-  primary.appendChild(createSimpleInput({ id: "orderDate", label: "Дата наказу *", type: "date", required: true }, state.orderMeta, (v) => { state.orderMeta.orderDate = v; refreshPreviewIfOpen(); }));
-  primary.appendChild(createSimpleInput({ id: "orderNumber", label: "Номер наказу", type: "text", maxlength: 40, placeholder: "наприклад: 125-о" }, state.orderMeta, (v) => { state.orderMeta.orderNumber = v; refreshPreviewIfOpen(); }));
+  primary.appendChild(createSimpleInput({ id: "orderDate", label: "Дата наказу *", type: "date", required: true }, state.orderMeta, (v) => { state.orderMeta.orderDate = v; markEditorDirty(); }));
+  primary.appendChild(createSimpleInput({ id: "orderNumber", label: "Номер наказу *", type: "text", maxlength: 40, placeholder: "наприклад: 125-о" }, state.orderMeta, (v) => { state.orderMeta.orderNumber = v; markEditorDirty(); }));
   ui.form.appendChild(primary);
 
   const regular = state.template.fields.filter((field) => !field.advanced);
@@ -627,7 +719,7 @@ function renderOrderForm() {
 
 function createField(field, target) {
   if (field.type === "repeatable") return createRepeatable(field, target);
-  return createSimpleInput(field, target, (value) => { target[field.id] = value; refreshPreviewIfOpen(); });
+  return createSimpleInput(field, target, (value) => { target[field.id] = value; markEditorDirty(); });
 }
 
 function createSimpleInput(field, target, onChange) {
@@ -655,6 +747,8 @@ function createSimpleInput(field, target, onChange) {
   input.value = target[field.id] ?? "";
   if (field.required) input.required = true;
   if (field.maxlength) input.maxLength = field.maxlength;
+  if (field.min !== undefined) input.min = String(field.min);
+  if (field.max !== undefined) input.max = String(field.max);
   if (field.placeholder) input.placeholder = field.placeholder;
   const eventName = field.type === "select" ? "change" : "input";
   input.addEventListener(eventName, () => onChange(input.value));
@@ -666,6 +760,7 @@ function createSimpleInput(field, target, onChange) {
 function createRepeatable(field, target) {
   if (!Array.isArray(target[field.id])) target[field.id] = [];
   const wrapper = document.createElement("div"); wrapper.className = "repeatable";
+  wrapper.dataset.repeatableId = field.id;
   const head = document.createElement("div"); head.className = "repeatable-head";
   const textWrap = document.createElement("div");
   const title = document.createElement("strong"); title.textContent = field.label;
@@ -676,7 +771,9 @@ function createRepeatable(field, target) {
   add.addEventListener("click", () => {
     target[field.id].push(blankRow(field.fields));
     renderOrderForm();
-    refreshPreviewIfOpen();
+    markEditorDirty();
+    const newInputs = ui.form.querySelectorAll(`[name="${field.fields[0]?.id || ""}"]`);
+    newInputs[newInputs.length - 1]?.focus();
   });
   head.append(textWrap, add); wrapper.appendChild(head);
 
@@ -689,10 +786,11 @@ function createRepeatable(field, target) {
     remove.addEventListener("click", () => {
       target[field.id].splice(index, 1);
       renderOrderForm();
-      refreshPreviewIfOpen();
+      markEditorDirty();
+      ui.form.querySelector(`[data-repeatable-id="${field.id}"] .repeatable-head button`)?.focus();
     });
     const grid = document.createElement("div"); grid.className = "repeatable-item-grid";
-    field.fields.forEach((sub) => grid.appendChild(createSimpleInput(sub, row, (value) => { row[sub.id] = value; refreshPreviewIfOpen(); })));
+    field.fields.forEach((sub) => grid.appendChild(createSimpleInput(sub, row, (value) => { row[sub.id] = value; markEditorDirty(); })));
     item.append(itemNumber, remove, grid); items.appendChild(item);
   });
   wrapper.appendChild(items);
@@ -717,18 +815,29 @@ function currentModel() {
   return buildOrderModel(state.template, state.formData, state.profile, state.orderMeta);
 }
 
-function openPreview() {
+function openPreview(requestedAction = "") {
   if (!state.template) return;
+  state.modalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   renderPreview();
   const report = runValidation();
   renderValidation(report);
   ui.previewModal.classList.remove("is-hidden");
+  ui.previewModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+  el("close-preview")?.focus();
+  if (requestedAction === "download" || requestedAction === "print") {
+    toast(report.hasErrors ? "Виправте помилки у перевірці." : "Перегляньте документ і підтвердьте дію внизу вікна.");
+  }
 }
 
 function closePreview() {
+  if (ui.previewModal.classList.contains("is-hidden")) return;
   ui.previewModal.classList.add("is-hidden");
+  ui.previewModal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
+  const target = state.modalReturnFocus;
+  state.modalReturnFocus = null;
+  if (target?.isConnected) target.focus();
 }
 
 function refreshPreviewIfOpen() {
@@ -754,7 +863,10 @@ function renderPreview() {
     img.style.width = `${model.letterheadWidthMm}mm`;
     ui.preview.appendChild(img);
   }
-  if (model.letterheadMode === "standard") appendPreviewText(ui.preview, model.institutionName || "Назва закладу", "institution", !model.institutionName);
+  if (model.letterheadMode === "standard") {
+    appendPreviewText(ui.preview, model.institutionName || "Назва закладу", "institution", !model.institutionName);
+    if (model.edrpou) appendPreviewText(ui.preview, `Код ЄДРПОУ ${model.edrpou}`, "institution-code");
+  }
   appendPreviewText(ui.preview, "НАКАЗ", "order-word");
 
   const meta = document.createElement("div"); meta.className = "date-number";
@@ -773,6 +885,24 @@ function renderPreview() {
   const pos = document.createElement("span"); pos.textContent = model.signerPosition || "Посада"; if (!model.signerPosition) pos.className = "placeholder";
   const name = document.createElement("span"); name.textContent = model.signerName || "ПІБ"; if (!model.signerName) name.className = "placeholder";
   sig.append(pos, name); ui.preview.appendChild(sig);
+
+  (model.attachments || []).forEach((attachment, index) => {
+    const section = document.createElement("section"); section.className = "preview-attachment";
+    appendPreviewText(section, `Додаток ${index + 1} до наказу від ${model.orderDate ? formatDateUa(model.orderDate) : "___"} № ${model.orderNumber || "___"}`, "appendix-reference");
+    appendPreviewText(section, attachment.title || `Додаток ${index + 1}`, "appendix-title");
+    if (attachment.note) appendPreviewText(section, attachment.note, "preamble");
+    (attachment.paragraphs || []).forEach((paragraph) => appendPreviewText(section, paragraph, "preamble"));
+    if (attachment.columns?.length && attachment.rows?.length) {
+      const table = document.createElement("table"); table.className = "appendix-table";
+      const thead = document.createElement("thead"); const headRow = document.createElement("tr");
+      attachment.columns.forEach((column) => { const th = document.createElement("th"); th.textContent = column; headRow.appendChild(th); });
+      thead.appendChild(headRow); table.appendChild(thead);
+      const tbody = document.createElement("tbody");
+      attachment.rows.forEach((row) => { const tr = document.createElement("tr"); attachment.columns.forEach((_, cellIndex) => { const td = document.createElement("td"); td.textContent = row[cellIndex] || ""; tr.appendChild(td); }); tbody.appendChild(tr); });
+      table.appendChild(tbody); section.appendChild(table);
+    }
+    ui.preview.appendChild(section);
+  });
 }
 
 function appendPreviewText(parent, textValue, className, placeholder = false) {
@@ -833,17 +963,19 @@ function renderValidation(report) {
     if (r.detail) { const small = document.createElement("small"); small.textContent = r.detail; body.appendChild(small); }
     row.append(icon, body); ui.validationResults.appendChild(row);
   });
+  el("modal-download").disabled = report.hasErrors;
+  el("modal-print").disabled = report.hasErrors;
 }
 
 function attemptDownload() {
   if (!state.template) return;
+  if (ui.previewModal.classList.contains("is-hidden")) { openPreview("download"); return; }
   if (state.schemaErrors.length) { toast("Експорт заблоковано внутрішньою перевіркою шаблонів."); return; }
   const report = runValidation();
   if (report.hasErrors) {
     renderPreview();
     renderValidation(report);
-    ui.previewModal.classList.remove("is-hidden");
-    document.body.classList.add("modal-open");
+    openPreview("download");
     toast("Заповніть обов’язкові поля перед завантаженням.");
     return;
   }
@@ -858,17 +990,17 @@ function attemptDownload() {
 
 function attemptPrint() {
   if (!state.template) return;
+  if (ui.previewModal.classList.contains("is-hidden")) { openPreview("print"); return; }
   const report = runValidation();
   if (report.hasErrors) {
     renderPreview();
     renderValidation(report);
-    ui.previewModal.classList.remove("is-hidden");
-    document.body.classList.add("modal-open");
+    openPreview("print");
     toast("Друк доступний після заповнення обов’язкових полів.");
     return;
   }
   renderPreview();
-  window.print();
+  requestAnimationFrame(() => window.print());
 }
 
 function populateProfileForm() {
@@ -981,7 +1113,7 @@ function updateProfileWarning() {
   if (missing.length) {
     ui.profileWarning.replaceChildren();
     const text = document.createElement("span"); text.textContent = `Перед експортом заповніть ${missing.join(", ")} у розділі «Мій заклад». `;
-    const button = document.createElement("button"); button.type = "button"; button.className = "inline-link"; button.textContent = "Відкрити налаштування"; button.addEventListener("click", () => setView("profile"));
+    const button = document.createElement("button"); button.type = "button"; button.className = "inline-link"; button.textContent = "Відкрити налаштування"; button.addEventListener("click", () => { if (confirmLeaveEditor()) setView("profile"); });
     ui.profileWarning.append(text, button);
   }
 }
@@ -992,7 +1124,20 @@ function renderProfileNudge() {
 }
 
 function modeLabel(mode) {
-  return mode === "preprinted" ? "Друк на готовому бланку" : mode === "image" ? "Фірмовий бланк" : "Стандартний бланк";
+  return mode === "preprinted" ? "Друк на затвердженому готовому бланку" : mode === "image" ? "Затверджений фірмовий бланк" : "Текстова шапка (не офіційний бланк)";
+}
+
+function markEditorDirty() {
+  state.editorDirty = true;
+  refreshPreviewIfOpen();
+}
+
+function confirmLeaveEditor() {
+  const editorVisible = !ui.editorView.classList.contains("is-hidden") && el("view-orders")?.classList.contains("is-active");
+  if (!editorVisible || !state.editorDirty) return true;
+  if (!confirm("Є незбережені зміни в наказі. Вийти без збереження?")) return false;
+  state.editorDirty = false;
+  return true;
 }
 
 function currentMonthId() {
