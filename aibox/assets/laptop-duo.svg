@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 430" role="img" aria-labelledby="title desc">
+  <title id="title">Порівняння ChatGPT і Gemini на ноутбуці</title>
+  <desc id="desc">Два вікна на екрані ноутбука для паралельної роботи з двома ШІ-сервісами.</desc>
+  <defs>
+    <linearGradient id="screen" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#eef5ff"/><stop offset="1" stop-color="#fff"/></linearGradient>
+    <linearGradient id="g1" x1="0" x2="1"><stop stop-color="#10a37f"/><stop offset="1" stop-color="#45c8aa"/></linearGradient>
+    <linearGradient id="g2" x1="0" x2="1"><stop stop-color="#4d6bff"/><stop offset=".55" stop-color="#9d51ff"/><stop offset="1" stop-color="#f4a62a"/></linearGradient>
+    <filter id="s"><feDropShadow dy="18" stdDeviation="16" flood-color="#132d77" flood-opacity=".18"/></filter>
+  </defs>
+  <rect width="800" height="430" rx="44" fill="#f6f9ff"/>
+  <g filter="url(#s)">
+    <rect x="82" y="54" width="636" height="302" rx="28" fill="#17224c"/>
+    <rect x="99" y="71" width="602" height="268" rx="18" fill="url(#screen)"/>
+    <path d="M44 356h712l-48 36H92l-48-36Z" fill="#cad7f2"/>
+    <rect x="332" y="364" width="136" height="10" rx="5" fill="#9eb2da"/>
+  </g>
+  <g transform="translate(121 96)">
+    <rect width="256" height="218" rx="20" fill="#fff" stroke="#d7e2f7" stroke-width="3"/>
+    <rect width="256" height="48" rx="20" fill="url(#g1)"/>
+    <circle cx="28" cy="24" r="12" fill="#fff" opacity=".9"/>
+    <text x="50" y="31" font-family="Arial" font-size="20" font-weight="700" fill="#fff">ChatGPT</text>
+    <rect x="20" y="70" width="164" height="16" rx="8" fill="#d8e7e2"/>
+    <rect x="20" y="96" width="207" height="12" rx="6" fill="#e9f2ef"/>
+    <rect x="20" y="118" width="185" height="12" rx="6" fill="#e9f2ef"/>
+    <rect x="20" y="150" width="216" height="46" rx="14" fill="#f1f7f5"/>
+    <circle cx="42" cy="173" r="10" fill="#10a37f"/>
+    <rect x="61" y="164" width="145" height="10" rx="5" fill="#c9dbd5"/>
+    <rect x="61" y="181" width="115" height="8" rx="4" fill="#dce9e5"/>
+  </g>
+  <g transform="translate(423 96)">
+    <rect width="256" height="218" rx="20" fill="#fff" stroke="#d7e2f7" stroke-width="3"/>
+    <rect width="256" height="48" rx="20" fill="url(#g2)"/>
+    <path d="M28 11 33 20l9 4-9 4-5 9-4-9-10-4 10-4Z" fill="#fff"/>
+    <text x="50" y="31" font-family="Arial" font-size="20" font-weight="700" fill="#fff">Gemini</text>
+    <rect x="20" y="70" width="180" height="16" rx="8" fill="#e2e5ff"/>
+    <rect x="20" y="96" width="207" height="12" rx="6" fill="#eff0ff"/>
+    <rect x="20" y="118" width="172" height="12" rx="6" fill="#eff0ff"/>
+    <rect x="20" y="150" width="216" height="46" rx="14" fill="#f5f2ff"/>
+    <circle cx="42" cy="173" r="10" fill="#6a55ff"/>
+    <rect x="61" y="164" width="145" height="10" rx="5" fill="#d6d2f1"/>
+    <rect x="61" y="181" width="126" height="8" rx="4" fill="#e5e2f6"/>
+  </g>
+  <path d="M397 88v239" stroke="#ffbd1a" stroke-width="5" stroke-dasharray="8 10"/>
+</svg>

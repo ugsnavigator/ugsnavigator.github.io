@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>ШІ-скарбничка вчителя — практикум із ChatGPT і Gemini</title>
+<meta content="Інтерактивний практикум для педагогів із ChatGPT і Gemini: промпти, навчальні матеріали, оцінювання, Canvas і персональні асистенти." name="description"/>
+<meta content="#1540c4" name="theme-color"/>
+<link href="assets/favicon.svg" rel="icon" type="image/svg+xml"/>
+<link href="style.css" rel="stylesheet"/>
+</head>
+<body>
+<a class="skip-link" href="#main">Перейти до змісту</a>
+<div aria-hidden="true" class="ambient ambient-a"></div>
+<div aria-hidden="true" class="ambient ambient-b"></div>
+<div aria-hidden="true" class="paper-grid"></div>
+<header class="site-header" id="top">
+<a aria-label="На початок ШІ-скарбнички" class="brand" href="#top">
+<span aria-hidden="true" class="brand-icon">AI</span>
+<span><strong>ШІ-скарбничка</strong><small>практикум для вчителя</small></span>
+</a>
+<button aria-controls="mainNav" aria-expanded="false" aria-label="Відкрити меню" class="menu-button" id="menuButton" type="button">
+<span></span><span></span><span></span>
+</button>
+<nav aria-label="Головна навігація" class="main-nav" id="mainNav">
+<a href="#workshop">Маршрут</a>
+<a href="#route">Місії</a>
+<a href="#vault">Промпти</a>
+<a href="#final">Результати</a>
+<button class="text-button" id="resetProgress" type="button">Скинути прогрес</button>
+</nav>
+</header>
+<main id="main">
+<section class="hero section" id="start">
+<div class="hero-copy">
+<div class="eyebrow">Практикум для вчителів</div>
+<h1>Зберіть власну <span>ШІ-скарбничку</span></h1>
+<p class="hero-lead">Виконайте <strong id="heroMissionCount">14</strong> практичних місій із ChatGPT і Gemini — від першого запиту до інтерактивного тренажера та власного асистента.</p>
+<div class="hero-actions">
+<a class="button primary" href="#profile">Почати практикум</a>
+<a class="button secondary" href="#vault">Відкрити бібліотеку промптів</a>
+</div>
+<div aria-label="Основні можливості" class="hero-pills"><span>💻 Практична робота</span><span>🤖 ChatGPT + Gemini</span><span>🧩 Готові шаблони промптів</span></div>
+</div>
+<aside aria-label="Прогрес проходження" class="hero-panel">
+<img alt="Відкрита ШІ-скарбничка з ноутбуком і золотими монетами" src="assets/treasure-hero.svg"/>
+<div class="progress-heading"><strong>Ваша скарбничка</strong><span id="progressCount">0/14 монет</span></div>
+<div aria-valuemax="14" aria-valuemin="0" aria-valuenow="0" class="progress-track" id="progressTrack" role="progressbar"><div id="progressFill"></div></div>
+<div aria-label="Зібрані монети" class="coin-row" id="heroCoins"></div>
+</aside>
+</section>
+<section class="section prep-section" id="prep">
+<div class="section-heading align-left presentation-accent">
+<span class="section-label">Перед початком</span>
+<h2>Підготуйте робоче місце</h2>
+<p>Практичні завдання виконуються у ChatGPT і Gemini.</p>
+</div>
+<div class="prep-grid">
+<article class="shared-topic-card">
+<span class="topic-chip">Тема практикуму</span>
+<h3>Безпечне використання інтернету</h3>
+<p><strong>Аудиторія:</strong> 5 клас. Навчальний текст використовується у місії про роботу з джерелом.</p>
+<button class="button primary material-download" data-open-material type="button">Відкрити навчальний текст</button>
+</article>
+<article class="start-check-card">
+<h3>Облікові записи</h3>
+<ol>
+<li>Відкрийте ChatGPT і Gemini.</li>
+<li>Увійдіть у свої акаунти. Для підтвердження входу може знадобитися телефон.</li>
+<li>На спільному комп’ютері не зберігайте пароль у браузері.</li>
+<li>Після завершення вийдіть з обох акаунтів.</li>
+</ol>
+</article>
+</div>
+</section>
+
+<section class="section profile-card" id="profile">
+<div class="section-heading align-left presentation-accent">
+<span class="section-label">Учасник</span>
+<h2>Вкажіть ім’я</h2>
+<p>Ім’я з’явиться у підсумку та сертифікаті.</p>
+</div>
+<form class="profile-form" id="profileForm">
+<label>Ім’я та прізвище<input autocomplete="name" name="name" placeholder="Наприклад: Олена Коваль" required=""/></label>
+<details class="optional-profile-fields">
+<summary>Додаткове завдання: моя тема</summary>
+<div class="profile-form optional-grid">
+<label>Предмет або роль<input name="subject" placeholder="Наприклад: математика"/></label>
+<label>Клас або вікова група<input name="grade" placeholder="Наприклад: 7 клас"/></label>
+<label>Власна тема<input name="topic" placeholder="Наприклад: Звичайні дроби"/></label>
+</div>
+<p class="micro-note">Заповніть ці поля, щоб отримувати адаптовані версії промптів.</p>
+</details>
+<button class="button primary" type="submit">Зберегти</button>
+</form>
+<p class="form-status" id="profileStatus" role="status">Профіль ще не заповнено.</p>
+<div aria-labelledby="backupTitle" class="backup-panel">
+<div><strong id="backupTitle">Збереження прогресу</strong><p id="backupStatus">Локальний прогрес зберігається лише в цьому браузері.</p></div>
+<div class="backup-actions">
+<button class="button secondary" id="exportProgress" type="button">Завантажити JSON</button>
+<button class="button secondary" id="importProgress" type="button">Завантажити прогрес</button>
+<input accept="application/json,.json" class="sr-only" id="importProgressFile" type="file"/>
+</div>
+</div>
+</section>
+<section class="section workshop-section" id="workshop">
+<div class="section-heading">
+<span class="section-label">Маршрут</span>
+<h2>Оберіть формат роботи</h2>
+<p>Оберіть тривалість, режим і потрібний модуль.</p>
+</div>
+<div class="workshop-controls" id="workshopControls">
+<div class="control-group"><h3>Тривалість</h3><div class="plan-buttons" id="planButtons"></div></div>
+<div class="control-group"><h3>Режим</h3><div class="mode-buttons" id="routeModeButtons"></div></div>
+<div class="control-group"><h3>Показати</h3><div class="module-buttons" id="moduleButtons"></div></div>
+<button aria-pressed="false" class="demo-mode-button" id="demoModeButton" type="button"></button>
+<div class="plan-summary" id="planSummary" role="status"></div>
+</div>
+<details class="facilitator-guide">
+<summary>План для ведучого</summary>
+<div class="facilitator-grid"><article class="facilitator-note"><h3>До початку</h3><p>Перевірте доступ до ChatGPT і Gemini. У місії 7 учасники зберігають навчальний текст як TXT і прикріплюють файл до чату.</p></article>
+<article><h3>60 хв</h3><p><b>0–7:</b> вступ і профіль. <b>7–17:</b> безпека. <b>17–32:</b> будова промпту. <b>32–47:</b> власний промпт. <b>47–57:</b> доопрацювання. <b>57–60:</b> один висновок від групи.</p></article>
+<article><h3>90 хв</h3><p>Сценарій 60 хв + 15 хв порівняння двох сервісів + 10 хв роботи з джерелом + 5 хв підсумку.</p></article>
+<article><h3>180 хв</h3><p><b>0–45:</b> старт і промпти. <b>45–90:</b> місії 5–8. <b>90–100:</b> перерва. <b>100–165:</b> план уроку, диференціація, оцінювання та зображення. <b>165–180:</b> перегляд результатів і підсумок. Canvas та асистент залишаються для самостійного продовження.</p></article>
+<article><h3>Запитання групі</h3><p>Що змінила друга ітерація? Який факт потребує зовнішньої перевірки? Де ШІ забрав роботу в учня? Яку частину результату може оцінити лише вчитель?</p></article>
+</div>
+</details>
+</section>
+<section class="section route-section" id="route">
+<div class="section-heading">
+<span class="section-label"><b id="routeCoinCount">14</b> місій</span>
+<h2>Практичні місії</h2>
+<p id="routeIntro">Виконуйте дії, додайте коротку нотатку та завершіть місію.</p>
+</div>
+<div class="route-layout">
+<nav aria-label="Місії практикуму" class="quest-nav" id="questNav"></nav>
+<article aria-live="polite" class="quest-stage" id="questStage"></article>
+</div>
+</section>
+<section class="section fallback-section" hidden="" id="fallback"><details><summary>Демо-матеріали</summary><div class="fallback-grid">
+<details><summary>Дві відповіді для порівняння</summary><div class="sample-pair"><article><b>Відповідь A</b><p>Пропонує чітку таблицю, але вигадує обладнання, якого немає, і не перевіряє сумарний час.</p></article><article><b>Відповідь B</b><p>Дотримується часу й матеріалів, але активність учнів зводить до слухання та переписування.</p></article></div><p><strong>Завдання:</strong> оцініть дві версії за точністю, дотриманням запиту, відповідністю 5 класу, якістю вправи та готовністю до використання.</p></details>
+<details><summary>Приклад роботи з джерелом</summary><p><b>Надійна версія:</b> спочатку перелічує прочитані розділи, відділяє цитовані факти від пропозицій і позначає відсутню інформацію.</p><p><b>Ризикована версія:</b> додає дату, якої немає у фрагменті, та подає припущення як зміст документа.</p></details>
+<details><summary>Демонстраційний покроковий діалог</summary><ol><li>Система запитує, що учасник уже знає.</li><li>Після відповіді дає одну підказку, а не фінальне рішення.</li><li>Просить пояснити власними словами.</li><li>На помилку реагує уточненням і простішим прикладом.</li></ol></details>
+<details><summary>Аудит тренажера без коду</summary><p>Уявний прототип має три проблеми: кнопка «Спробувати ще» не очищає відповідь; помилка позначається лише кольором; завдання 4 перевіряє іншу навичку, ніж заявлена мета. Знайдіть і сформулюйте дві педагогічні та одну технічну правку.</p></details>
+</div></details></section>
+<section class="section vault-section" id="vault">
+<div class="section-heading">
+<span class="section-label">Промпти</span>
+<h2>Бібліотека промптів</h2>
+<p>Оберіть шаблон, скопіюйте його та замініть дані у квадратних дужках.</p>
+</div>
+<div class="vault-toolbar">
+<div aria-label="Фільтр категорій промптів" class="category-filters" id="categoryFilters" role="group"></div>
+<label class="search-field"><span class="sr-only">Пошук промптів</span><input id="promptSearch" placeholder="Пошук: урок, тест, батьки, диференціація…" type="search"/></label>
+</div>
+<div class="prompt-grid" id="promptGrid"></div>
+</section>
+<section class="section final-section" id="final">
+<div class="final-card">
+<div>
+<span class="section-label">Результати</span>
+<h2>Збережіть свої напрацювання</h2>
+<p>Після завершення <b id="finalMissionCount">14</b> місій завантажте підсумок і сертифікат.</p>
+<div class="final-actions">
+<button class="button primary" disabled="" id="downloadSummary" type="button">Завантажити підсумок</button>
+<button class="button secondary" disabled="" id="openCertificate" type="button">Сертифікат</button>
+</div>
+<p class="unlock-message" id="unlockMessage">Зберіть ще 14 монет, щоб відкрити фінальний скарб.</p>
+</div>
+<div aria-hidden="true" class="final-chest" id="finalChest">
+<div class="chest-light"></div><div class="chest-lid"></div><div class="chest-base"><span>AI</span></div>
+<div class="final-coins"><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+</div>
+</section>
+<section class="section sources-section">
+<details>
+<summary>Джерела</summary>
+<div class="source-list">
+<p><strong>Посилання на функції сервісів перевірено 4 серпня 2026 року.</strong> Покрокову механіку переосмислено на основі «AI-рюкзака вчителя». Зміст маршруту й візуальні акценти співвіднесено з презентацією «Gemini для вчителя та учня: промпти та дієві інструменти навчання». Категорії бібліотеки відповідають групам EduStars Prompt Lab. Назви кнопок і доступність функцій можуть змінюватися залежно від облікового запису, плану та оновлень сервісів.</p>
+<a href="https://myroslavhesyk.github.io/ai-backpack-teacher/" rel="noopener noreferrer" target="_blank">AI-рюкзак вчителя</a>
+<a href="https://padlet.com/edustars/padlet-fjl82g1gj14lpwad" rel="noopener noreferrer" target="_blank">Методична скарбничка промптів</a>
+<a href="https://help.openai.com/en/articles/11780217-study-mode" rel="noopener noreferrer" target="_blank">ChatGPT Study Mode — офіційна довідка</a>
+<a href="https://help.openai.com/en/articles/9930697-what-is-the-canvas-feature-in-chatgpt-and-how-do-i-use-it" rel="noopener noreferrer" target="_blank">ChatGPT Canvas — офіційна довідка</a>
+<a href="https://help.openai.com/en/articles/10169521-projects-in-chatgpt" rel="noopener noreferrer" target="_blank">Проєкти в ChatGPT — офіційна довідка</a>
+<a href="https://support.google.com/gemini/answer/16448384" rel="noopener noreferrer" target="_blank">Навчальні інструменти Gemini — офіційна довідка</a>
+<a href="https://support.google.com/gemini/answer/16972047" rel="noopener noreferrer" target="_blank">Навчальні зошити Gemini — офіційна довідка</a>
+<a href="https://support.google.com/gemini/answer/16047321" rel="noopener noreferrer" target="_blank">Gemini Canvas — офіційна довідка</a>
+<a href="https://support.google.com/gemini/answer/15236321" rel="noopener noreferrer" target="_blank">Gems у Gemini — офіційна довідка</a>
+<a href="https://help.openai.com/en/articles/11084440-images-in-chatgpt" rel="noopener noreferrer" target="_blank">Зображення в ChatGPT — офіційна довідка</a>
+<a href="https://support.google.com/gemini/answer/14286560" rel="noopener noreferrer" target="_blank">Зображення в Gemini — офіційна довідка</a>
+</div>
+</details>
+</section>
+</main>
+<footer class="site-footer"><p><strong>ШІ-скарбничка вчителя</strong> · практикум з ChatGPT і Gemini</p></footer>
+<dialog aria-labelledby="materialTitle" class="material-dialog" id="materialDialog">
+<button aria-label="Закрити" class="dialog-close" id="closeMaterial" type="button">×</button>
+<div class="material-dialog-head">
+<span class="section-label">Навчальний матеріал</span>
+<h2 id="materialTitle">Безпечне використання інтернету</h2>
+<p>5 клас</p>
+</div>
+<div class="material-dialog-actions">
+<button class="button secondary" id="copyMaterial" type="button">Скопіювати текст</button>
+<button class="button primary" id="downloadMaterial" type="button">Завантажити TXT</button>
+</div>
+<p class="material-instruction">Збережіть файл, а потім прикріпіть його до повідомлення в ChatGPT або Gemini.</p>
+<pre class="material-text" id="materialText" tabindex="0"></pre>
+<div class="dialog-actions"><button class="button secondary" id="closeMaterialBottom" type="button">Закрити</button></div>
+</dialog>
+<dialog class="certificate-dialog" id="certificateDialog">
+<button aria-label="Закрити" class="dialog-close" id="closeCertificate" type="button">×</button>
+<h2>Сертифікат проходження обраного маршруту</h2>
+<canvas aria-label="Попередній перегляд сертифіката" height="1100" id="certificateCanvas" width="1600"></canvas>
+<div class="dialog-actions"><button class="button primary" id="downloadCertificate" type="button">Завантажити PNG</button></div>
+</dialog>
+<div aria-live="polite" class="toast" id="toast" role="status"></div>
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UGS — Інтерактивний гайд з використання ШІ</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="hero">
+<div class="wrap">
+  <div class="eyebrow">UGS · Гайд з використання ШІ · 2026/2027</div>
+  <h1>Як використовувати ШІ в UGS</h1>
+  <p class="lead">Оберіть свою роль, щоб побачити правила використання ШІ, приклади дозволених і заборонених дій, вимоги до академічної доброчесності та відповіді на типові ситуації.</p>
+  <div class="role-switch">
+    <button class="role-btn active" data-role="student">Я учень / учениця</button>
+    <button class="role-btn" data-role="teacher">Я вчитель / вчителька</button>
+    <button class="role-btn" data-role="admin">Я працівник / адміністрація</button>
+  </div>
+</div>
+</header>
+
+<div class="toolbar"><div class="toolbar-inner">
+<nav class="nav">
+<a href="#quick">Основне</a>
+<a href="#decision">Чи можна ШІ?</a>
+<a href="#integrity">Доброчесність</a>
+<a href="#safety">Безпека</a>
+<a href="#cases">Типові ситуації</a>
+<a href="#age">Вік і відповідальність</a>
+<a href="#quiz">Самоперевірка</a>
+</nav>
+<input id="search" class="search" type="search" placeholder="Пошук у гайді…">
+</div></div>
+
+<main>
+<div id="empty" class="empty">Нічого не знайдено. Спробуйте інше слово.</div>
+
+<section id="quick" data-search="швидко головні правила">
+<div class="section-head"><div><h2>П’ять головних правил</h2><p>Основні правила, які діють під час використання ШІ в навчанні та роботі.</p></div></div>
+<div class="grid principles">
+  <div class="card span4"><div class="badge info">1</div><h3>Спочатку умови завдання</h3><p>Учитель може дозволити ШІ, обмежити його або заборонити для конкретного завдання.</p></div>
+  <div class="card span4"><div class="badge good">2</div><h3>ШІ допомагає, а не замінює</h3><p>Людина відповідає за фінальний результат і рішення.</p></div>
+  <div class="card span4"><div class="badge warn">3</div><h3>Істотний внесок — зазначаємо</h3><p>Назвіть інструмент і коротко поясніть, для чого його використали.</p></div>
+  <div class="card span6"><div class="badge bad">4</div><h3>Не передавайте зайві персональні дані</h3><p>Особливо у загальнодоступні сервіси. Мінімізуйте або знеособлюйте дані.</p></div>
+  <div class="card span6"><div class="badge purple">5</div><h3>ШІ може помилятися</h3><p>Перевіряйте важливі факти, джерела, цитати, дати та результати.</p></div>
+</div>
+</section>
+
+<section id="decision" data-search="чи можна ші алгоритм рішення">
+<div class="section-head"><div><h2>Чи можна тут використовувати ШІ?</h2><p>Пройдіть коротке дерево рішень.</p></div></div>
+<div class="decision">
+  <div class="panel">
+    <p id="flowQuestion" class="question"></p><div id="flowChoices" class="choices"></div>
+    <button id="resetFlow" class="reset">Почати спочатку</button>
+  </div>
+  <div id="flowResult" class="result"></div>
+</div>
+</section>
+
+<section id="philosophy" data-search="позиція ugs принципи людиноцентричність прозорість навчання">
+<div class="section-head"><div><h2>Як UGS підходить до використання ШІ</h2><p>ШІ може бути корисним інструментом, якщо його використання відповідає меті завдання, правилам безпеки та принципам академічної доброчесності.</p></div></div>
+<div class="grid">
+  <div class="card span6"><div class="big-icon">↗</div><h3>ШІ можна використовувати для навчання</h3><p>Коли це відповідає умовам завдання, віковим вимогам сервісу та правилам цієї Політики.</p></div>
+  <div class="card span6"><div class="big-icon">👤</div><h3>Людина приймає рішення</h3><p>ШІ може допомагати, але не замінює педагогічне судження, критичне мислення та відповідальність.</p></div>
+  <div class="card span6"><div class="big-icon">◉</div><h3>Істотний внесок ШІ потрібно зазначати</h3><p>Допомога ШІ може бути допустимою, але її не слід приховувати, якщо вона істотно вплинула на зміст, структуру, висновки або результат.</p></div>
+  <div class="card span6"><div class="big-icon">✓</div><h3>ШІ має допомагати думати, а не думати замість учня</h3><p>Учень має розуміти, пояснювати, перевіряти й бути здатним захистити результат, який подає як власну роботу.</p></div>
+</div>
+</section>
+
+<section id="integrity" data-search="доброчесність істотний внесок зазначати декларувати">
+<div class="section-head"><div><h2>Коли треба зазначати використання ШІ?</h2><p>Ключове слово Політики — «істотно вплинув».</p></div></div>
+<div class="grid">
+  <div class="span8 declare"><div class="badge info">Базове правило</div><h3>Істотний вплив = зазначаємо</h3>
+    <p>Якщо ШІ істотно вплинув на зміст, структуру, висновки або результат роботи, зазначте назву інструмента і спосіб використання.</p>
+    <div class="example">«Використано ChatGPT для пошуку ідей та перевірки структури тексту».</div>
+  </div>
+  <div class="card span4"><div class="badge warn">Учитель може уточнити</div><h3>Для окремого завдання вимоги можуть бути ширші</h3>
+    <p>Наприклад, учитель може попросити промпти, історію взаємодії або опис процесу створення роботи — якщо повідомив про це заздалегідь.</p>
+  </div>
+</div>
+<div class="scale" style="margin-top:14px">
+  <div class="card"><div class="badge good">Зазвичай не потребує окремого зазначення</div><h3>Навчальна допомога</h3>
+    <span class="case-chip">пояснити правило</span><span class="case-chip">5 тренувальних запитань</span><span class="case-chip">знайти орфографічну помилку</span>
+  </div>
+  <div class="card"><div class="badge warn">Залежить від масштабу</div><h3>Допомога з процесом</h3>
+    <span class="case-chip">мозковий штурм</span><span class="case-chip">план</span><span class="case-chip">feedback</span><span class="case-chip">переформулювання</span>
+    <p style="margin-top:10px">Якщо це реально вплинуло на структуру або результат — краще зазначити.</p>
+  </div>
+  <div class="card"><div class="badge bad">Зазначити потрібно</div><h3>Суттєве створення результату</h3>
+    <span class="case-chip">значна чернетка</span><span class="case-chip">код</span><span class="case-chip">зображення</span><span class="case-chip">висновки</span>
+  </div>
+</div>
+</section>
+
+<section id="student-rules" class="role-only student" data-search="учень можна не можна">
+<div class="section-head"><div><h2>Учню: що можна і що не можна</h2></div></div>
+<div class="grid">
+<div class="card span6"><div class="badge good">Можна</div><ul class="rule-list">
+<li>просити пояснення, приклади, тренувальні вправи;</li><li>шукати ідеї, складати план;</li>
+<li>аналізувати інформацію з перевіркою важливих фактів;</li><li>створювати чернетки, тексти, код, зображення — якщо дозволяє завдання;</li>
+<li>перевіряти граматику, переклад, форматування, помилки.</li></ul></div>
+<div class="card span6"><div class="badge bad">Не можна</div><ul class="rule-list">
+<li>використовувати ШІ на контрольній, якщо вчитель не дозволив;</li><li>обходити контроль або отримувати недозволену допомогу;</li>
+<li>видавати результат ШІ за власний, коли його використання треба було зазначити;</li><li>створювати шкідливий, дискримінаційний чи оманливий контент;</li>
+<li>передавати чужі персональні або конфіденційні дані без належної підстави.</li></ul></div>
+</div>
+</section>
+
+<section id="teacher-eval" class="role-only teacher hidden" data-search="вчитель оцінювання тести есе feedback">
+<div class="section-head"><div><h2>Вчителю: ШІ та оцінювання</h2><p>Де ШІ може бути помічником, а де рішення має залишитися за педагогом.</p></div></div>
+<div class="card" style="overflow:auto">
+<table class="eval-table">
+<thead><tr><th>Ситуація</th><th>Статус</th><th>Як правильно</th></tr></thead>
+<tbody>
+<tr><td>Перевірити тест з однозначною правильною відповіддю</td><td class="yes">Можна</td><td>Автоматизована перевірка допустима.</td></tr>
+<tr><td>Знайти можливі слабкі місця в есе</td><td class="yes">Можна</td><td>Як допоміжний аналіз, після чого рішення приймає вчитель.</td></tr>
+<tr><td>Згенерувати формувальний feedback</td><td class="yes">Можна</td><td>Перевірити, відредагувати та адаптувати до учня.</td></tr>
+<tr><td>Самостійно виставити фінальну оцінку за есе</td><td class="no">Не можна</td><td>Остаточна оцінка — рішення педагога.</td></tr>
+<tr><td>Самостійно оцінити творчий / проєктний результат</td><td class="no">Не можна</td><td>Потрібне професійне педагогічне судження.</td></tr>
+<tr><td>Врахувати аналіз ШІ та самому прийняти рішення</td><td class="yes">Можна</td><td>За умови перевірки та людського контролю.</td></tr>
+</tbody></table>
+</div>
+</section>
+
+<section id="teacher-tools" class="role-only teacher hidden" data-search="вчитель урок диференціація персоналізація адміністративна робота">
+<div class="section-head"><div><h2>Де ШІ реально може допомогти вчителю</h2></div></div>
+<div class="tabs">
+<button class="tab active" data-tab="prep">Підготовка уроку</button><button class="tab" data-tab="diff">Диференціація</button>
+<button class="tab" data-tab="feedback">Feedback</button><button class="tab" data-tab="adminwork">Адміністративна робота</button>
+</div>
+<div class="card teacher-use active" id="prep"><h3>Підготовка уроку</h3><p>Варіанти завдань, приклади, тести, презентації, чернетки матеріалів — з обов’язковою перевіркою перед використанням.</p></div>
+<div class="card teacher-use" id="diff"><h3>Диференціація</h3><p>Спрощення або ускладнення текстів і завдань, різні рівні підтримки, адаптація під освітні потреби учнів.</p></div>
+<div class="card teacher-use" id="feedback"><h3>Формувальний feedback</h3><p>ШІ може запропонувати чернетку зворотного зв’язку, але педагог перевіряє коректність, тон і відповідність роботі конкретного учня.</p></div>
+<div class="card teacher-use" id="adminwork"><h3>Організаційні завдання</h3><p>Чернетки повідомлень, планів, структур, аналіз інформації та інші рутинні задачі — за умови дотримання правил захисту даних.</p></div>
+</section>
+
+<section id="admin-rules" class="role-only admin hidden" data-search="адміністрація управління планування документообіг">
+<div class="section-head"><div><h2>Адміністрації: де можна застосовувати ШІ</h2></div></div>
+<div class="grid">
+<div class="card span6"><div class="badge good">Підтримка управління</div><ul class="rule-list">
+<li>аналіз даних для управлінських рішень;</li><li>планування ресурсів і бюджету;</li><li>управління якістю;</li><li>документообіг і обробка заявок;</li><li>аналіз зворотного зв’язку.</li></ul></div>
+<div class="card span6"><div class="badge warn">Людський контроль</div><p>Процеси, які можуть вплинути на права, безпеку або добробут учнів чи працівників, не повинні залишатися без можливості людського втручання та перевірки.</p></div>
+</div>
+</section>
+
+<section id="safety" data-search="безпека персональні дані конфіденційність корпоративний акаунт витік">
+<div class="section-head"><div><h2>П’ять правил безпечної роботи з ШІ</h2></div></div>
+<div class="card">
+<div class="security5">
+<div class="security-item"><div><b>Передавайте мінімум даних.</b><br><span style="color:var(--muted)">Не вводьте персональну інформацію, яка не потрібна для конкретного завдання.</span></div></div>
+<div class="security-item"><div><b>Не завантажуйте конфіденційні матеріали без належної підстави.</b><br><span style="color:var(--muted)">Особливо у загальнодоступні ШІ-сервіси.</span></div></div>
+<div class="security-item"><div><b>Надавайте перевагу схваленим Школою сервісам.</b><br><span style="color:var(--muted)">Якщо Школа визначила відповідний перелік або умови використання.</span></div></div>
+<div class="security-item"><div><b>Використовуйте освітній / корпоративний акаунт, коли це передбачено й доцільно.</b></div></div>
+<div class="security-item"><div><b>Якщо сталася помилка або можливий витік — повідомте відповідальну особу.</b><br><span style="color:var(--muted)">Мета — швидко зменшити ризик, а не приховати проблему.</span></div></div>
+</div>
+</div>
+<div class="grid" style="margin-top:14px">
+<div class="card span6 role-only teacher hidden"><div class="badge bad">Важливо для вчителя</div><h3>Учнівська робота теж може містити персональні дані</h3><p>Не завантажуйте у загальнодоступний ШІ роботи разом із ПІБ, контактами, фото або іншими даними, що прямо чи опосередковано ідентифікують учня.</p></div>
+<div class="card span6 role-only teacher hidden"><div class="badge good">Краще</div><h3>Знеособлення або схвалене середовище</h3><p>Якщо аналіз роботи ШІ доцільний, надавайте перевагу знеособленню або схваленому освітньому / корпоративному середовищу.</p></div>
+</div>
+</section>
+
+<section id="literacy" data-search="галюцинації упередження критичне мислення">
+<div class="section-head"><div><h2>Перевіряйте результати ШІ</h2><p>ШІ може помилятися, вигадувати факти, створювати неіснуючі джерела або давати упереджені результати.</p></div></div>
+<div class="grid">
+<div class="demo span6"><div class="badge warn">Галюцинації</div><h3>ШІ може вигадувати факти та джерела</h3><p>Особливо перевіряйте дати, цитати, статистику, посилання, закони та наукові факти.</p>
+<button class="choice reveal" data-target="hallucination">Що саме перевіряти?</button><div id="hallucination" class="demo-answer">Хто автор? Чи існує джерело? Чи збігається дата? Чи є підтвердження у надійному джерелі? Чи не змішав ШІ два різні факти?</div></div>
+<div class="demo span6"><div class="badge purple">Упередження</div><h3>ШІ теж може бути необ’єктивним</h3><p>Не вважайте відповідь нейтральною лише тому, що її створила система.</p>
+<button class="choice reveal" data-target="bias">Приклад</button><div id="bias" class="demo-answer">Наприклад: «Опиши хорошого керівника». Якщо модель систематично описує лише чоловіків певного віку чи походження — це сигнал перевірити можливу упередженість результату.</div></div>
+</div>
+</section>
+
+<section id="age" data-search="13 14 років вік">
+<div class="section-head"><div><h2>Вік і відповідальність</h2></div></div>
+<div class="card"><div class="age-grid">
+<div class="age"><b>До 13 років</b>Лише у керованому вчителем або законними представниками середовищі та якщо це допускають правила сервісу.</div>
+<div class="age"><b>Від 13 років</b>Самостійне використання генеративного ШІ можливе за умови дотримання вікових вимог конкретного сервісу.</div>
+<div class="age"><b>Від 14 років</b>Можлива академічна відповідальність за встановлене порушення академічної доброчесності.</div>
+</div></div>
+</section>
+
+<section id="cases" data-search="кейси ситуації chatgpt gemini canva код контрольна deepfake">
+<div class="section-head"><div><h2>Типові ситуації</h2><p>Оберіть ситуацію, щоб побачити, як застосовуються правила Політики на практиці.</p></div></div>
+<div class="case-toolbar">
+<button class="filter active" data-filter="all">Усі</button><button class="filter" data-filter="student">Учень</button>
+<button class="filter" data-filter="teacher">Вчитель</button><button class="filter" data-filter="admin">Адміністрація</button>
+</div>
+<div id="caseGrid" class="case-grid"></div>
+</section>
+
+<section id="consequences" data-search="наслідки санкції попередження повторне оцінювання">
+<div class="section-head"><div><h2>Як реагує Школа на недоброчесне використання ШІ</h2><p>Мета — пропорційна реакція та навчання відповідальному використанню.</p></div></div>
+<div class="grid">
+<div class="card span4"><div class="badge info">Навчальний захід</div><h3>Тематичне заняття / тренінг</h3></div>
+<div class="card span4"><div class="badge warn">Попередження</div><h3>Усне або письмове</h3></div>
+<div class="card span4"><div class="badge bad">Повторна робота</div><h3>Повторне виконання; для 14+ — повторне оцінювання у передбачених випадках</h3></div>
+</div>
+</section>
+
+<section id="quiz" data-search="тест самоперевірка">
+<div class="section-head"><div><h2>Самоперевірка</h2><p>Перевірте, чи правильно ви зрозуміли ключові правила використання ШІ.</p></div><div id="score" class="score">0 / 7</div></div>
+<div class="card" id="quizBox"></div>
+<button id="resetQuiz" class="choice" style="margin-top:10px">Пройти ще раз</button>
+</section>
+
+<section data-search="джерело повна політика">
+<div class="source"><strong>Нормативною основою є Політика використання штучного інтелекту в освітньому процесі UGS.</strong><br>У разі виникнення спірної або нестандартної ситуації застосовується повний текст Політики.</div>
+</section>
+</main>
+
+<footer>UGS · Інтерактивний гайд до Політики використання ШІ · 2026/2027</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

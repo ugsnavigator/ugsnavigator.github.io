@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>Самотести — Конструктор наказів</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main style="max-width:980px;margin:0 auto;padding:28px 16px 60px">
+    <section class="card content-card">
+      <div class="panel-heading">
+        <div><div class="eyebrow">Вбудований QA</div><h1>Самотести MVP</h1></div>
+        <a class="btn btn-ghost" href="index.html">Назад</a>
+      </div>
+      <p class="muted">Тести виконуються локально у браузері. Мережеві запити заборонені CSP.</p>
+      <div id="test-stats" class="test-summary">Запуск…</div>
+      <div id="test-results" class="validation-results" style="margin-top:12px"></div>
+    </section>
+  </main>
+  <script src="js/tests.bundle.js" defer></script>
+</body>
+</html>

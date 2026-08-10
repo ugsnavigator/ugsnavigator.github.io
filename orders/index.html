@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'; worker-src 'none'">
+  <title>Конструктор наказів для школи</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">Н</div>
+        <div>
+          <h1>Конструктор наказів</h1>
+          <p>Практичний інструмент для підготовки шкільних наказів</p>
+        </div>
+      </div>
+      <nav class="main-nav" aria-label="Основна навігація">
+        <button class="nav-btn is-active" data-view="orders">Накази</button>
+        <button class="nav-btn" data-view="saved">Збережені</button>
+        <button class="nav-btn" data-view="profile">Мій заклад</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="view-orders" class="view is-active">
+        <section id="catalog-view" class="catalog-view">
+          <div class="catalog-head compact-head">
+            <div>
+              <div class="eyebrow">2026/2027 навчальний рік</div>
+              <div class="catalog-title-line">
+                <h2 id="catalog-title">Накази на серпень</h2>
+                <span id="catalog-summary" class="catalog-summary"></span>
+              </div>
+            </div>
+            <label class="search-field catalog-search">
+              <span class="sr-only">Пошук наказу</span>
+              <input id="template-search" type="search" autocomplete="off" placeholder="Пошук наказу…">
+            </label>
+          </div>
+
+          <div id="profile-nudge" class="profile-nudge compact-nudge is-hidden">
+            <span><strong>Не заповнені дані закладу.</strong> Вони потрібні для експорту наказу.</span>
+            <button id="go-profile" type="button" class="inline-action">Заповнити</button>
+          </div>
+
+          <div class="catalog-filterbar" aria-label="Фільтри каталогу">
+            <div id="month-nav" class="month-nav" aria-label="Місяці навчального року"></div>
+            <label class="compact-select inline-select">
+              <span class="sr-only">Категорія</span>
+              <select id="category-filter" aria-label="Категорія наказів"></select>
+            </label>
+          </div>
+
+          <div id="template-grid" class="template-grid" aria-live="polite"></div>
+
+          <section id="universal-section" class="universal-section" aria-labelledby="universal-title">
+            <div class="section-title-row">
+              <div>
+                <h3 id="universal-title">Універсальні шаблони</h3>
+                <p>Для ситуацій, яких немає у календарній добірці.</p>
+              </div>
+              <button id="show-all-templates" type="button" class="text-button">Усі шаблони</button>
+            </div>
+            <div id="universal-grid" class="universal-grid"></div>
+          </section>
+        </section>
+
+        <section id="editor-view" class="editor-view is-hidden">
+          <div class="editor-topline">
+            <button id="back-to-catalog" type="button" class="back-button">← До переліку наказів</button>
+            <div id="editor-badges" class="badge-row"></div>
+          </div>
+
+          <div class="editor-layout">
+            <section class="editor-card">
+              <div class="editor-heading">
+                <div>
+                  <div id="template-category" class="eyebrow"></div>
+                  <h2 id="template-title">Оберіть шаблон</h2>
+                  <p id="template-description" class="muted"></p>
+                </div>
+                <button id="reset-draft" type="button" class="text-button danger-text">Очистити поля</button>
+              </div>
+
+              <div id="template-notice" class="alert alert-warning is-hidden"></div>
+              <div id="profile-warning" class="alert alert-soft is-hidden"></div>
+
+              <div class="auto-text-note">
+                <span class="auto-icon" aria-hidden="true">✓</span>
+                <div><strong>Стандартний текст уже підготовлено</strong><span>Заповнюйте лише змінні дані. Типові формулювання формуються автоматично.</span></div>
+              </div>
+
+              <form id="order-form" novalidate></form>
+
+              <div class="editor-actions">
+                <button id="preview-order" type="button" class="btn btn-secondary">Попередній перегляд</button>
+                <button id="save-order" type="button" class="btn btn-secondary">Зберегти наказ</button>
+                <button id="download-docx" type="button" class="btn btn-primary">Завантажити DOCX</button>
+                <button id="print-order" type="button" class="btn btn-ghost">Друк / PDF</button>
+              </div>
+              <p class="small-note">Збереження наказу виконується тільки за вашою командою і лише на цьому пристрої.</p>
+            </section>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-saved" class="view">
+        <div class="saved-page">
+          <div class="page-heading-row">
+            <div>
+              <div class="eyebrow">Локальна бібліотека</div>
+              <h2>Збережені накази</h2>
+              <p class="muted">Поверніться до наказу, відредагуйте його або створіть копію.</p>
+            </div>
+            <label class="search-field saved-search">
+              <span class="sr-only">Пошук серед збережених наказів</span>
+              <input id="saved-search" type="search" autocomplete="off" placeholder="Знайти збережений наказ…">
+            </label>
+          </div>
+          <div class="local-data-note"><strong>Важливо:</strong> ці накази зберігаються лише у браузері цього комп’ютера і можуть містити персональні дані.</div>
+          <div id="saved-orders-list" class="saved-orders-list"></div>
+          <details class="utility-details saved-utility">
+            <summary>Резервна копія збережених наказів</summary>
+            <div class="utility-content">
+              <p>Експортований JSON може містити персональні дані працівників та учнів. Зберігайте файл як конфіденційний документ.</p>
+              <div class="utility-actions">
+                <button id="export-orders" type="button" class="btn btn-ghost">Експорт JSON</button>
+                <label class="btn btn-ghost file-btn">Імпорт JSON<input id="import-orders" type="file" accept="application/json,.json"></label>
+                <button id="clear-saved-orders" type="button" class="btn btn-danger">Видалити всі збережені</button>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section id="view-profile" class="view">
+        <div class="profile-page">
+          <div class="page-heading-row profile-heading">
+            <div>
+              <div class="eyebrow">Налаштовується один раз</div>
+              <h2>Мій заклад</h2>
+              <p class="muted">Реквізити та працівники автоматично підставляються у накази.</p>
+            </div>
+            <div class="profile-transfer-actions">
+              <button id="export-profile" type="button" class="btn btn-ghost">Зберегти налаштування JSON</button>
+              <label class="btn btn-ghost file-btn">Відкрити JSON<input id="import-profile" type="file" accept="application/json,.json"></label>
+            </div>
+          </div>
+
+          <form id="profile-form" class="profile-form" novalidate>
+            <section class="settings-card">
+              <h3>Реквізити закладу</h3>
+              <div class="form-grid two-col">
+                <label class="field"><span>Повна назва закладу *</span><input name="institutionName" type="text" maxlength="240" autocomplete="organization"></label>
+                <label class="field"><span>Скорочена назва</span><input name="shortName" type="text" maxlength="120"></label>
+                <label class="field"><span>Населений пункт *</span><input name="location" type="text" maxlength="120" placeholder="Київ"></label>
+                <label class="field"><span>Код ЄДРПОУ</span><input name="edrpou" type="text" inputmode="numeric" maxlength="12"></label>
+                <label class="field"><span>Посада підписанта *</span><input name="signerPosition" type="text" maxlength="120" placeholder="Директор"></label>
+                <label class="field"><span>ПІБ підписанта *</span><input name="signerName" type="text" maxlength="160"></label>
+              </div>
+            </section>
+
+            <section class="settings-card">
+              <div class="section-heading-simple">
+                <div><h3>Фірмовий бланк</h3><p>Оберіть спосіб, яким школа друкує накази.</p></div>
+              </div>
+              <div class="radio-cards">
+                <label class="radio-card"><input type="radio" name="letterheadMode" value="standard"><span><strong>Стандартний</strong><small>Назва закладу друкується у документі.</small></span></label>
+                <label class="radio-card"><input type="radio" name="letterheadMode" value="preprinted"><span><strong>Готовий паперовий бланк</strong><small>Документ починається нижче вже надрукованої шапки.</small></span></label>
+                <label class="radio-card"><input type="radio" name="letterheadMode" value="image"><span><strong>Зображення бланка</strong><small>PNG/JPEG вбудовується у DOCX.</small></span></label>
+              </div>
+
+              <div id="preprinted-options" class="subpanel is-hidden">
+                <label class="field compact-field"><span>Відступ до слова «НАКАЗ», мм</span><input name="preprintedTopMm" type="number" min="25" max="100" step="1"><small>Підберіть пробним друком під ваш фізичний бланк.</small></label>
+              </div>
+
+              <div id="image-options" class="subpanel is-hidden">
+                <label class="field"><span>Файл бланка: PNG або JPEG, до 2 МБ</span><input id="letterhead-file" type="file" accept="image/png,image/jpeg"></label>
+                <div id="letterhead-file-status" class="file-status"></div>
+                <label class="check-row"><input id="remember-letterhead" type="checkbox"><span>Запам’ятати зображення на цьому пристрої</span></label>
+                <label class="field compact-field"><span>Ширина зображення у документі, мм</span><input name="letterheadWidthMm" type="number" min="80" max="180" step="1"></label>
+              </div>
+            </section>
+
+            <section class="settings-card">
+              <div class="section-heading-simple">
+                <div><h3>Довідник працівників</h3><p>ПІБ і посади з’являтимуться як підказки під час створення наказів.</p></div>
+                <button id="add-staff" type="button" class="btn btn-ghost">+ Додати працівника</button>
+              </div>
+              <div id="staff-editor" class="staff-editor"></div>
+            </section>
+
+            <div class="profile-actions">
+              <button type="submit" class="btn btn-primary">Зберегти налаштування</button>
+              <button id="back-to-orders" type="button" class="btn btn-secondary">Повернутися до наказів</button>
+            </div>
+          </form>
+
+          <section class="transfer-card">
+            <h3>Перенесення на інший комп’ютер</h3>
+            <p>Файл JSON містить реквізити закладу, довідник працівників і, якщо збережено, графічний фірмовий бланк. Він не містить ваших збережених наказів.</p>
+            <div class="utility-actions">
+              <button id="export-profile-secondary" type="button" class="btn btn-ghost">Зберегти JSON</button>
+              <label class="btn btn-ghost file-btn">Відкрити JSON<input id="import-profile-secondary" type="file" accept="application/json,.json"></label>
+            </div>
+          </section>
+
+          <details class="utility-details">
+            <summary>Приватність і технічні дії</summary>
+            <div class="utility-content">
+              <p>Дані зберігаються локально. Застосунок не надсилає їх у мережу.</p>
+              <div class="utility-actions">
+                <button id="clear-local-data" type="button" class="btn btn-danger">Видалити локальні дані</button>
+                <a class="text-link" href="tests.html" target="_blank" rel="noopener">Технічні тести</a>
+              </div>
+              <div id="self-test-summary" class="sr-only">Самоперевірка не запускалася.</div>
+            </div>
+          </details>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <datalist id="staff-suggestions"></datalist>
+
+  <div id="preview-modal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
+    <div class="modal-backdrop" data-close-modal="true"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <div class="eyebrow">Попередній перегляд</div>
+          <h2 id="preview-modal-title">Наказ перед експортом</h2>
+        </div>
+        <button id="close-preview" type="button" class="icon-button" aria-label="Закрити">×</button>
+      </div>
+      <div id="validation-summary" class="validation-summary"></div>
+      <details id="validation-details" class="validation-details is-hidden">
+        <summary>Що потрібно перевірити</summary>
+        <div id="validation-results" class="validation-results"></div>
+      </details>
+      <div class="preview-stage">
+        <article id="order-preview" class="a4-page" aria-label="Попередній перегляд наказу"></article>
+      </div>
+      <div class="modal-actions">
+        <span id="preview-mode-label" class="mode-label"></span>
+        <div>
+          <button id="modal-print" type="button" class="btn btn-ghost">Друк / PDF</button>
+          <button id="modal-download" type="button" class="btn btn-primary">Завантажити DOCX</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="js/app.bundle.js" defer></script>
+</body>
+</html>
