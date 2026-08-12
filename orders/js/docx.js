@@ -24,8 +24,10 @@ export function verifyGeneratedDocx(model, letterheadAsset = null) {
   if (!documentText.includes("<w:document") || !documentText.includes("<w:body>")) errors.push("Некоректна структура word/document.xml.");
   if (!documentText.includes(xmlEscape(model.title))) errors.push("Заголовок наказу не потрапив до DOCX.");
   if (!documentText.includes(xmlEscape(model.signerName))) errors.push("ПІБ підписанта не потрапив до DOCX.");
-  if (containsPlaceholder(documentText)) errors.push("У сформованому DOCX залишилися службові заповнювачі.");
-  if (model.points?.length && (!documentText.includes("<w:numPr>") || /<w:t[^>]*>\s*1\.\s/u.test(documentText))) errors.push("Пункти наказу не оформлено штатною нумерацією Word.");
+  const modelText = [model.title, model.preamble, ...(model.points || []), model.grounds, ...((model.attachments || []).flatMap((attachment) => [attachment.title, attachment.note, ...(attachment.paragraphs || []), ...(attachment.rows || []).flat()]))].join("\n");
+  if (containsPlaceholder(modelText)) errors.push("У моделі документа залишилися службові заповнювачі.");
+  const numberedPointParagraphs = documentText.match(/<w:p><w:pPr>(?:(?!<\/w:pPr>)[\s\S])*?<w:pStyle w:val="OrderPoint"\/>[\s\S]*?<w:numPr>[\s\S]*?<\/w:numPr>[\s\S]*?<\/w:pPr>[\s\S]*?<\/w:p>/g) || [];
+  if ((model.points || []).length !== numberedPointParagraphs.length) errors.push("Пункти наказу не оформлено штатною нумерацією Word.");
 
   const numberingText = new TextDecoder().decode(files.get("word/numbering.xml") || new Uint8Array());
   if (!numberingText.includes("<w:abstractNum") || !numberingText.includes('w:numFmt w:val="decimal"')) errors.push("Некоректна схема нумерації Word.");
@@ -181,21 +183,21 @@ function stylesXml() {
   <w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="360" w:lineRule="auto"/></w:pPr></w:pPrDefault>
 </w:docDefaults>
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="28"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderInstitution"><w:name w:val="Order Institution"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="200"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderInstitutionCode"><w:name w:val="Order Institution Code"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="200"/></w:pPr><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderLetterhead"><w:name w:val="Order Letterhead"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="180"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderWord"><w:name w:val="Order Word"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="180"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderTitle"><w:name w:val="Order Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="300"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderBody"><w:name w:val="Order Body"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="both"/><w:spacing w:after="180" w:line="360" w:lineRule="auto"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderInstitution"><w:name w:val="Order Institution"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="200"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderInstitutionCode"><w:name w:val="Order Institution Code"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="200"/><w:jc w:val="center"/></w:pPr><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderLetterhead"><w:name w:val="Order Letterhead"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="180"/><w:jc w:val="center"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderWord"><w:name w:val="Order Word"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="180"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderTitle"><w:name w:val="Order Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="300"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderBody"><w:name w:val="Order Body"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="180" w:line="360" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderPreamble"><w:name w:val="Order Preamble"/><w:basedOn w:val="OrderBody"/><w:pPr><w:ind w:firstLine="567"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderCommand"><w:name w:val="Order Command"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="160"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderPoint"><w:name w:val="Order Point"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="both"/><w:spacing w:after="140" w:line="360" w:lineRule="auto"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderMeta"><w:name w:val="Order Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="center" w:pos="4500"/><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:after="240"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderPoint"><w:name w:val="Order Point"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="140" w:line="360" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderMeta"><w:name w:val="Order Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="center" w:pos="4819"/><w:tab w:val="right" w:pos="9638"/></w:tabs><w:spacing w:after="240"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderSignature"><w:name w:val="Order Signature"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:before="480" w:after="0"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="AppendixTitle"><w:name w:val="Appendix Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="AppendixReference"><w:name w:val="Appendix Reference"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="right"/><w:spacing w:after="0"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="AppendixTitle"><w:name w:val="Appendix Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="240"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="AppendixReference"><w:name w:val="Appendix Reference"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0"/><w:jc w:val="right"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="AppendixReferenceLast"><w:name w:val="Appendix Reference Last"/><w:basedOn w:val="AppendixReference"/><w:pPr><w:spacing w:after="240"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="TableHeader"><w:name w:val="Table Header"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:rPr><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="TableHeader"><w:name w:val="Table Header"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="TableBody"><w:name w:val="Table Body"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 </w:styles>`;
 }
@@ -240,7 +242,9 @@ function documentXml(model, imageInfo) {
   body.push(paragraphXml(model.preamble || "[Преамбула]", { style: "OrderPreamble" }));
   body.push(paragraphXml("НАКАЗУЮ:", { style: "OrderCommand" }));
   model.points.forEach((point) => body.push(numberedParagraphXml(point)));
+  if (model.grounds) body.push(paragraphXml(`Підстава: ${model.grounds}`, { style: "OrderBody" }));
   body.push(signatureXml(model));
+  if ((model.acknowledgements || []).length) body.push(acknowledgementsXml(model.acknowledgements));
   const attachments = model.attachments || [];
   if (attachments.length) {
     body.push(sectionBreakParagraphXml(topTwip, pageWidth, pageHeight, leftTwip, rightTwip, bottomTwip));
@@ -270,9 +274,9 @@ function sectionPropertiesXml(topTwip, pageWidth, pageHeight, leftTwip, rightTwi
 function paragraphXml(text, opts = {}) {
   const pPr = [];
   if (opts.style) pPr.push(`<w:pStyle w:val="${xmlEscape(opts.style)}"/>`);
-  if (opts.align) pPr.push(`<w:jc w:val="${opts.align}"/>`);
-  if (opts.firstLineMm) pPr.push(`<w:ind w:firstLine="${mmToTwip(opts.firstLineMm)}"/>`);
   if (opts.after !== undefined) pPr.push(`<w:spacing w:after="${opts.after}" w:line="360" w:lineRule="auto"/>`);
+  if (opts.firstLineMm) pPr.push(`<w:ind w:firstLine="${mmToTwip(opts.firstLineMm)}"/>`);
+  if (opts.align) pPr.push(`<w:jc w:val="${opts.align}"/>`);
   const rPr = runPropsXml(opts);
   return `<w:p>${pPr.length ? `<w:pPr>${pPr.join("")}</w:pPr>` : ""}<w:r>${rPr}<w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
 }
@@ -288,6 +292,10 @@ function dateNumberPlaceXml(model) {
   const date = model.orderDate ? formatDateUa(model.orderDate) : "[дата]";
   const place = model.location || "[місце]";
   const number = model.orderNumber ? `№ ${model.orderNumber}` : "№ ____";
+  if (model.placeLayout === "separate") {
+    return `<w:p><w:pPr><w:pStyle w:val="OrderMeta"/><w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs></w:pPr><w:r><w:t>${xmlEscape(date)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(number)}</w:t></w:r></w:p>
+${paragraphXml(place, { align: "center", after: 240 })}`;
+  }
   return `<w:p><w:pPr><w:pStyle w:val="OrderMeta"/></w:pPr>
 <w:r><w:t>${xmlEscape(date)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(place)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(number)}</w:t></w:r></w:p>`;
 }
@@ -302,12 +310,30 @@ function signatureXml(model) {
   return `<w:p><w:pPr><w:pStyle w:val="OrderSignature"/></w:pPr><w:r><w:t>${xmlEscape(position)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(name)}</w:t></w:r></w:p>`;
 }
 
+function acknowledgementsXml(rows) {
+  const parts = [paragraphXml("З наказом ознайомлені:", { style: "OrderBody", bold: true })];
+  rows.forEach((row) => {
+    const date = row.date ? formatDateUa(row.date) : "«___» __________ 20__ р.";
+    parts.push(paragraphXml(`_________________   ${row.name || "[Власне ім’я ПРІЗВИЩЕ]"}   ${date}`, { style: "OrderBody" }));
+  });
+  return parts.join("\n");
+}
+
 function attachmentXml(attachment, index, model) {
-  const parts = [
-    paragraphXml(`Додаток ${index}`, { style: "AppendixReference" }),
-    paragraphXml(`до наказу від ${model.orderDate ? formatDateUa(model.orderDate) : "___"} № ${model.orderNumber || "___"}`, { style: "AppendixReferenceLast" }),
-    paragraphXml(attachment.title || `Додаток ${index}`, { style: "AppendixTitle" }),
-  ];
+  const dateNumber = `${model.orderDate ? formatDateUa(model.orderDate) : "___"} № ${model.orderNumber || "___"}`;
+  const institution = model.institutionName || "[Назва закладу]";
+  const reference = attachment.kind === "approved"
+    ? [
+        paragraphXml("ЗАТВЕРДЖЕНО", { style: "AppendixReference", bold: true }),
+        paragraphXml(`Наказ ${institution}`, { style: "AppendixReference" }),
+        paragraphXml(dateNumber, { style: "AppendixReferenceLast" }),
+      ]
+    : [
+        paragraphXml(`Додаток ${index}`, { style: "AppendixReference" }),
+        paragraphXml(`до наказу ${institution}`, { style: "AppendixReference" }),
+        paragraphXml(dateNumber, { style: "AppendixReferenceLast" }),
+      ];
+  const parts = [...reference, paragraphXml(attachment.title || `Додаток ${index}`, { style: "AppendixTitle" })];
   if (attachment.note) parts.push(paragraphXml(attachment.note, { style: "OrderBody" }));
   (attachment.paragraphs || []).forEach((text) => parts.push(paragraphXml(text, { style: "OrderPreamble" })));
   if ((attachment.columns || []).length && (attachment.rows || []).length) parts.push(tableXml(attachment.columns, attachment.rows));
@@ -322,9 +348,9 @@ function tableXml(columns, rows) {
   const grid = widths.map((width) => `<w:gridCol w:w="${width}"/>`).join("");
   const rowXml = (cells, header = false) => `<w:tr>${header ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${columns.map((_, index) => {
     const value = cells[index] || "";
-    return `<w:tc><w:tcPr><w:tcW w:w="${widths[index]}" w:type="dxa"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:start w:w="120" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:end w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>${paragraphXml(value, { style: header ? "TableHeader" : "TableBody" })}</w:tc>`;
+    return `<w:tc><w:tcPr><w:tcW w:w="${widths[index]}" w:type="dxa"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>${paragraphXml(value, { style: header ? "TableHeader" : "TableBody" })}</w:tc>`;
   }).join("")}</w:tr>`;
-  return `<w:tbl><w:tblPr><w:tblW w:w="${totalWidth}" w:type="dxa"/><w:tblInd w:w="120" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="000000"/><w:left w:val="single" w:sz="4" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:color="000000"/><w:right w:val="single" w:sz="4" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:color="000000"/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rowXml(columns, true)}${rows.map((row) => rowXml(row)).join("")}</w:tbl>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="${totalWidth}" w:type="dxa"/><w:tblInd w:w="120" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="000000"/><w:left w:val="single" w:sz="4" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:color="000000"/><w:right w:val="single" w:sz="4" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:color="000000"/></w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rowXml(columns, true)}${rows.map((row) => rowXml(row)).join("")}</w:tbl>`;
 }
 
 function imageParagraphXml(imageInfo) {
@@ -371,7 +397,7 @@ export function makeZip(filesMap) {
     const dv = new DataView(local.buffer);
     dv.setUint32(0, 0x04034b50, true);
     dv.setUint16(4, 20, true);
-    dv.setUint16(6, 0, true);
+    dv.setUint16(6, 0x0800, true);
     dv.setUint16(8, 0, true); // STORE
     dv.setUint16(10, dos.time, true);
     dv.setUint16(12, dos.date, true);
@@ -394,7 +420,7 @@ export function makeZip(filesMap) {
     dv.setUint32(0, 0x02014b50, true);
     dv.setUint16(4, 20, true);
     dv.setUint16(6, 20, true);
-    dv.setUint16(8, 0, true);
+    dv.setUint16(8, 0x0800, true);
     dv.setUint16(10, 0, true);
     dv.setUint16(12, entry.dos.time, true);
     dv.setUint16(14, entry.dos.date, true);

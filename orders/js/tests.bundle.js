@@ -60,6 +60,16 @@ const baseAdvanced = () => [
     maxlength: 220,
     placeholder: "Залиште порожнім — директор залишить контроль за собою",
   }),
+  textarea("grounds", "Підстава (окремий реквізит)", {
+    advanced: true,
+    maxlength: 1600,
+    placeholder: "Наприклад: заява Ірини ІВАНОВОЇ від 01.09.2026",
+    help: "Необов’язково. Використовуйте для наказів, де після розпорядчої частини потрібен окремий реквізит «Підстава:».",
+  }),
+  repeatable("acknowledgements", "З наказом ознайомлені", [
+    person("name", "Власне ім’я та ПРІЗВИЩЕ *", { required: true, maxlength: 220 }),
+    date("date", "Дата ознайомлення", {}),
+  ], { advanced: true, maxItems: 100, help: "Необов’язковий блок підписів. За локальною інструкцією замість нього може використовуватися окремий аркуш ознайомлення." }),
 ];
 
 const LEGAL_SENSITIVE_TEMPLATES = new Set([
@@ -78,10 +88,40 @@ const LEGAL_SENSITIVE_TEMPLATES = new Set([
   "preliminary-tariffication",
 ]);
 
-const RECORD_SERIES = Object.freeze({
-  "Кадрові": "Кадрові питання",
-  "Учні": "Рух здобувачів освіти",
-  "Адміністративно-господарські": "Адміністративно-господарські питання",
+const RECORD_SERIES_OPTIONS = Object.freeze([
+  "Основна діяльність",
+  "Рух здобувачів освіти",
+  "Адміністративно-господарські питання",
+  "Кадрові питання",
+]);
+
+const RECORD_SERIES_BY_TEMPLATE = Object.freeze({
+  "school-year-organization": "Основна діяльність",
+  "pedagogical-workload": "Основна діяльність",
+  "responsible-safety": "Основна діяльність",
+  "student-enrollment": "Рух здобувачів освіти",
+  "school-meals": "Основна діяльність",
+  "class-teachers": "Основна діяльність",
+  "attestation-commission": "Основна діяльність",
+  "adaptation-grade-1-5": "Основна діяльність",
+  "school-olympiad": "Основна діяльність",
+  "documentation-check": "Основна діяльність",
+  "attestation-list-schedule": "Основна діяльність",
+  "semester-results": "Основна діяльність",
+  "winter-break-plan": "Основна діяльність",
+  "winter-safety": "Основна діяльність",
+  "olympiad-results": "Основна діяльність",
+  "attestation-results": "Кадрові питання",
+  "school-year-end": "Основна діяльність",
+  "first-grade-admission": "Рух здобувачів освіти",
+  "dpa-exemption": "Основна діяльність",
+  "education-documents": "Основна діяльність",
+  "student-promotion": "Рух здобувачів освіти",
+  "preliminary-tariffication": "Основна діяльність",
+  "responsible-person": "Основна діяльність",
+  "commission": "Основна діяльність",
+  "approve-document": "Основна діяльність",
+  "free-order": "Основна діяльність",
 });
 
 function template(config) {
@@ -103,7 +143,7 @@ function template(config) {
     ...config,
     fields,
     needsVerification,
-    recordSeries: config.recordSeries || RECORD_SERIES[config.category] || "Основна діяльність",
+    recordSeries: config.recordSeries || RECORD_SERIES_BY_TEMPLATE[config.id] || "Основна діяльність",
     legalReview: needsVerification ? {
       reviewedAt: "2026-08-10",
       note: "Перед підписанням звірте підставу з чинною редакцією акта та локальною інструкцією з діловодства.",
@@ -211,8 +251,8 @@ const ORDER_TEMPLATES = [
     ],
     build(data) {
       const students = (Array.isArray(data.students) ? data.students : [])
-        .map((s) => `${clean(s.name)} — до ${clean(s.className)} класу`)
-        .filter((x) => !/^\s*—/u.test(x));
+        .filter((student) => clean(student?.name) && clean(student?.className))
+        .map((student) => `${clean(student.name)} — до ${clean(student.className)} класу`);
       const list = students.join("; ");
       const points = [
         `Зарахувати з ${formatDateUa(data.enrollmentDate)} до складу учнів закладу: ${list}.`,
@@ -429,15 +469,26 @@ const ORDER_TEMPLATES = [
       return {
         ...order,
         attachments: [{
+          kind: "approved",
           title: clean(data.attachmentName),
           columns: ["№ з/п", "Педагогічний працівник", "Строк атестації"],
           rows: (data.employees || []).map((employee, index) => [String(index + 1), clean(employee.person), formatDateUa(employee.attestationDate)]),
         }, {
+          kind: "approved",
           title: "Графік засідань атестаційної комісії",
           columns: ["№ з/п", "Дата засідання", "Питання / етап роботи"],
           rows: (data.meetings || []).map((meeting, index) => [String(index + 1), formatDateUa(meeting.meetingDate), clean(meeting.agenda)]),
         }],
       };
+    },
+    validate(data, model) {
+      if (!model.orderDate) return [];
+      const dateValue = new Date(`${model.orderDate}T00:00:00`);
+      if (Number.isNaN(dateValue.getTime())) return [];
+      const deadline = new Date(dateValue.getFullYear(), 9, 20);
+      return dateValue > deadline
+        ? [{ level: "error", title: "Список і графік затверджуються після 20 жовтня", detail: "Перевірте дату наказу та вимоги чинної редакції Положення про атестацію.", fieldId: "orderDate" }]
+        : [];
     },
   }),
   template({
@@ -564,7 +615,7 @@ const ORDER_TEMPLATES = [
       const elapsed = workingDaysBetween(data.decisionDate, model.orderDate);
       if (elapsed === null) return [];
       if (elapsed < 0) return [{ level: "error", title: "Дата наказу передує рішенню атестаційної комісії" }];
-      if (elapsed > 7) return [{ level: "error", title: "Перевищено 7-денний строк видання наказу", detail: `Між рішенням і датою наказу минуло ${elapsed} робочих днів.` }];
+      if (elapsed > 7) return [{ level: "warn", title: "Можливо перевищено 7-денний строк видання наказу", detail: `За базовим календарем понеділок–п’ятниця минуло ${elapsed} робочих днів. Звірте фактичний графік роботи закладу.`, affectsReadiness: true, fieldId: "orderDate" }];
       return [];
     },
   }),
@@ -627,12 +678,12 @@ const ORDER_TEMPLATES = [
     notice: "Не використовуйте цей шаблон автоматично. На дату підготовки MVP рішення щодо ДПА за 2026/2027 навчальний рік може змінитися або бути відсутнім.",
     fields: [
       text("classes", "Класи / учні *", { required: true, maxlength: 360 }),
-      textarea("verifiedBasis", "Перевірена чинна підстава *", { required: true, maxlength: 1600, placeholder: "Вкажіть актуальний нормативний акт / рішення, перевірене на дату видання наказу" }),
+      textarea("documentBasis", "Підстава, що увійде до тексту наказу *", { required: true, maxlength: 1600, placeholder: "Вкажіть актуальний нормативний акт / рішення, перевірене на дату видання наказу" }),
       ...baseAdvanced(),
     ],
     build(data) {
       return finish(this.title,
-        normalizeSentence(clean(data.verifiedBasis)),
+        normalizeSentence(clean(data.documentBasis)),
         [`Звільнити від проходження державної підсумкової атестації: ${clean(data.classes)}.`, "Відповідальним працівникам забезпечити коректне відображення відповідної інформації у шкільній документації."],
         data);
     },
@@ -779,6 +830,7 @@ const ORDER_TEMPLATES = [
       return {
         ...order,
         attachments: [{
+          kind: "approved",
           title: clean(data.documentName),
           paragraphs: String(data.documentText || "").split(/\r?\n/).map(clean).filter(Boolean),
         }],
@@ -804,7 +856,7 @@ const ORDER_TEMPLATES = [
       return {
         title: clean(data.customTitle),
         preamble: normalizeSentence(data.preamble),
-        points: (Array.isArray(data.points) ? data.points : []).map((p) => normalizeSentence(p.text)).filter(Boolean),
+        points: (Array.isArray(data.points) ? data.points : []).map((p) => normalizeSentence(stripManualPointNumber(p.text))).filter(Boolean),
       };
     },
   }),
@@ -821,6 +873,10 @@ function withBasis(sentence, basis) {
   const base = endingDot(sentence);
   const b = endingDot(basis);
   return b ? `${base}, з урахуванням ${lowerFirst(b)}.` : `${base}.`;
+}
+
+function stripManualPointNumber(value) {
+  return clean(value).replace(/^\d{1,3}[.)]\s+/u, "");
 }
 
 function workingDaysBetween(startValue, endValue) {
@@ -880,6 +936,7 @@ const DEFAULT_PROFILE = Object.freeze({
   edrpou: "",
   signerPosition: "Директор",
   signerName: "",
+  placeLayout: "inline",
   letterheadMode: "standard",
   preprintedTopMm: 55,
   letterheadWidthMm: 170,
@@ -919,12 +976,14 @@ function buildOrderModel(template, formData, profile, orderMeta) {
   return {
     templateId: template.id,
     category: template.category,
-    recordSeries: clean(template.recordSeries || "Основна діяльність"),
+    recordSeries: clean(orderMeta.recordSeries || template.recordSeries || "Основна діяльність"),
     title: clean(built.title),
     preamble: clean(built.preamble),
     points: (built.points || []).map(clean).filter(Boolean),
     attachments: sanitizeAttachments(built.attachments),
-    legalBasis: clean(formData?.verifiedBasis),
+    reviewedLegalBasis: clean(formData?.verifiedBasis),
+    grounds: clean(formData?.grounds),
+    acknowledgements: sanitizeAcknowledgements(formData?.acknowledgements),
     orderDate: clean(orderMeta.orderDate),
     orderNumber: clean(orderMeta.orderNumber),
     institutionName: clean(profile.institutionName),
@@ -933,6 +992,7 @@ function buildOrderModel(template, formData, profile, orderMeta) {
     edrpou: clean(profile.edrpou),
     signerPosition: clean(profile.signerPosition),
     signerName: clean(profile.signerName),
+    placeLayout: profile.placeLayout === "separate" ? "separate" : "inline",
     letterheadMode: profile.letterheadMode || "standard",
     preprintedTopMm: clampNumber(profile.preprintedTopMm, 25, 100, 55),
     letterheadWidthMm: clampNumber(profile.letterheadWidthMm, 80, 180, 170),
@@ -942,6 +1002,7 @@ function buildOrderModel(template, formData, profile, orderMeta) {
 function sanitizeAttachments(attachments) {
   if (!Array.isArray(attachments)) return [];
   return attachments.slice(0, 20).map((attachment) => ({
+    kind: attachment?.kind === "approved" ? "approved" : "annex",
     title: clean(attachment?.title),
     note: clean(attachment?.note),
     paragraphs: Array.isArray(attachment?.paragraphs) ? attachment.paragraphs.map(clean).filter(Boolean).slice(0, 500) : [],
@@ -952,6 +1013,14 @@ function sanitizeAttachments(attachments) {
   })).filter((attachment) => attachment.title || attachment.paragraphs.length || attachment.rows.length);
 }
 
+function sanitizeAcknowledgements(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.slice(0, 100).map((row) => ({
+    name: clean(row?.name),
+    date: clean(row?.date),
+  })).filter((row) => row.name || row.date);
+}
+
 function clampNumber(value, min, max, fallback) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -959,12 +1028,16 @@ function clampNumber(value, min, max, fallback) {
 }
 
 function containsPlaceholder(text) {
-  return /\{\{|\}\}|\[\s*(?:встав|ПІБ|дата|номер|назва|посада)|TODO|XXX/iu.test(String(text ?? ""));
+  return /\{\{[^}]*\}\}|\[\s*(?:встав(?:те)?|ПІБ|дата|номер|назва|посада)(?:[^\]]*)\]/iu.test(String(text ?? ""));
+}
+
+function isOrderReady(validation) {
+  return !validation?.hasErrors && !validation?.results?.some((result) => result.affectsReadiness === true);
 }
 
 function validateOrder({ template, rawData, model, profile, letterheadAsset, allowDraft = false }) {
   const results = [];
-  const push = (level, title, detail = "") => results.push({ level, title, detail });
+  const push = (level, title, detail = "", meta = {}) => results.push({ level, title, detail, ...meta });
 
   if (!clean(profile.institutionName)) push("error", "Не заповнено повну назву закладу", "Заповніть профіль у розділі «Мій заклад». ");
   else push("ok", "Назва закладу заповнена");
@@ -977,10 +1050,17 @@ function validateOrder({ template, rawData, model, profile, letterheadAsset, all
   if (!clean(profile.signerPosition) || !clean(profile.signerName)) push("error", "Не заповнено підписанта");
   else push("ok", "Підписант заповнений");
 
-  if (!model.orderDate) push("error", "Не вказано дату наказу");
-  else push("ok", "Дата наказу заповнена");
+  if (!model.orderDate) push("error", "Не вказано дату наказу", "", { fieldId: "orderDate" });
+  else {
+    push("ok", "Дата наказу заповнена");
+    const orderDate = new Date(`${model.orderDate}T00:00:00`);
+    const tomorrow = new Date(); tomorrow.setHours(0, 0, 0, 0); tomorrow.setDate(tomorrow.getDate() + 1);
+    if (!Number.isNaN(orderDate.getTime()) && orderDate >= tomorrow) {
+      push("warn", "Дата наказу ще не настала", "Датою наказу має бути дата його підписання. Перевірте значення перед реєстрацією.", { fieldId: "orderDate", affectsReadiness: true });
+    }
+  }
 
-  if (!model.orderNumber) push(allowDraft ? "warn" : "error", "Не вказано номер наказу", allowDraft ? "Для чернетки це допустимо; фінальний експорт заблоковано до присвоєння номера." : "Присвойте номер у відповідній реєстраційній серії перед фінальним експортом.");
+  if (!model.orderNumber) push(allowDraft ? "warn" : "error", "Не вказано номер наказу", allowDraft ? "Для чернетки це допустимо; фінальний експорт заблоковано до присвоєння номера." : "Присвойте номер у відповідній реєстраційній серії перед фінальним експортом.", { fieldId: "orderNumber", affectsReadiness: true });
   else push("ok", "Номер наказу заповнений");
 
   validateFields(template.fields, rawData, push);
@@ -992,7 +1072,8 @@ function validateOrder({ template, rawData, model, profile, letterheadAsset, all
   if (!model.points.length) push("error", "Немає жодного пункту наказу");
   else push("ok", `Сформовано пунктів: ${model.points.length}`);
 
-  const allText = [model.title, model.preamble, ...model.points, model.signerName, model.institutionName].join("\n");
+  const attachmentText = (model.attachments || []).flatMap((attachment) => [attachment.title, attachment.note, ...(attachment.paragraphs || []), ...(attachment.rows || []).flat()]);
+  const allText = [model.title, model.preamble, ...model.points, model.grounds, model.signerName, model.institutionName, ...attachmentText].join("\n");
   if (containsPlaceholder(allText)) push("error", "У документі залишилися службові заповнювачі", "Приберіть {{...}}, TODO, XXX або незаповнені позначки.");
   else push("ok", "Службових заповнювачів не знайдено");
 
@@ -1010,7 +1091,7 @@ function validateOrder({ template, rawData, model, profile, letterheadAsset, all
     const customResults = template.validate(rawData, model);
     if (Array.isArray(customResults)) customResults.forEach((result) => {
       if (result && ["error", "warn", "ok"].includes(result.level) && result.title) {
-        push(result.level, result.title, result.detail || "");
+        push(result.level, result.title, result.detail || "", result);
       }
     });
   }
@@ -1019,25 +1100,27 @@ function validateOrder({ template, rawData, model, profile, letterheadAsset, all
   return { results, hasErrors };
 }
 
-function validateFields(fields, data, push, prefix = "") {
+function validateFields(fields, data, push, prefix = "", parentPath = "") {
   for (const field of fields) {
     const label = `${prefix}${field.label || field.id}`;
     const value = data?.[field.id];
+    const fieldPath = parentPath ? `${parentPath}.${field.id}` : field.id;
     if (field.type === "repeatable") {
       const items = Array.isArray(value) ? value : [];
-      if (field.required && items.length < (field.minItems || 1)) push("error", `Недостатньо записів: ${label}`);
-      items.forEach((item, index) => validateFields(field.fields, item, push, `${label} ${index + 1}: `));
+      if (field.required && items.length < (field.minItems || 1)) push("error", `Недостатньо записів: ${label}`, "", { fieldId: field.id, fieldPath });
+      items.forEach((item, index) => validateFields(field.fields, item, push, `${label} ${index + 1}: `, `${fieldPath}.${index}`));
       continue;
     }
-    if (field.required && !clean(value)) push("error", `Обов’язкове поле не заповнено: ${label}`);
-    if (field.maxlength && String(value ?? "").length > field.maxlength) push("error", `Перевищено допустиму довжину: ${label}`);
+    const meta = { fieldId: field.id, fieldPath };
+    if (field.required && !clean(value)) push("error", `Обов’язкове поле не заповнено: ${label}`, "", meta);
+    if (field.maxlength && String(value ?? "").length > field.maxlength) push("error", `Перевищено допустиму довжину: ${label}`, "", meta);
     if (clean(value) && field.type === "number") {
       const number = Number(value);
-      if (!Number.isFinite(number)) push("error", `Некоректне число: ${label}`);
-      if (Number.isFinite(number) && Number.isFinite(Number(field.min)) && number < Number(field.min)) push("error", `Значення менше дозволеного (${field.min}): ${label}`);
-      if (Number.isFinite(number) && Number.isFinite(Number(field.max)) && number > Number(field.max)) push("error", `Значення більше дозволеного (${field.max}): ${label}`);
+      if (!Number.isFinite(number)) push("error", `Некоректне число: ${label}`, "", meta);
+      if (Number.isFinite(number) && Number.isFinite(Number(field.min)) && number < Number(field.min)) push("error", `Значення менше дозволеного (${field.min}): ${label}`, "", meta);
+      if (Number.isFinite(number) && Number.isFinite(Number(field.max)) && number > Number(field.max)) push("error", `Значення більше дозволеного (${field.max}): ${label}`, "", meta);
     }
-    if (clean(value) && field.type === "date" && Number.isNaN(new Date(`${value}T00:00:00`).getTime())) push("error", `Некоректна дата: ${label}`);
+    if (clean(value) && field.type === "date" && Number.isNaN(new Date(`${value}T00:00:00`).getTime())) push("error", `Некоректна дата: ${label}`, "", meta);
   }
 }
 
@@ -1128,6 +1211,43 @@ function validateDimensions(width, height) {
 }
 
 
+/* ===== registration.js ===== */
+const SERIES_SUFFIX = Object.freeze({
+  "Основна діяльність": "-о",
+  "Рух здобувачів освіти": "-у",
+  "Адміністративно-господарські питання": "-г",
+  "Кадрові питання": "-к",
+});
+
+function sameRegistrationScope(record, model, fallbackSeries = "Основна діяльність") {
+  const year = String(model?.orderDate || "").slice(0, 4);
+  return Boolean(year)
+    && String(record?.orderDate || "").slice(0, 4) === year
+    && String(record?.recordSeries || fallbackSeries) === String(model?.recordSeries || fallbackSeries);
+}
+
+function findDuplicateOrderNumber(records, model, currentId = "", fallbackSeries = "Основна діяльність") {
+  const number = String(model?.orderNumber || "").trim();
+  if (!number) return null;
+  return (Array.isArray(records) ? records : []).find((record) => record?.id !== currentId
+    && String(record?.orderNumber || "").trim() === number
+    && sameRegistrationScope(record, model, fallbackSeries)) || null;
+}
+
+function registrationStats(records, model, fallbackSeries = "Основна діяльність") {
+  return (Array.isArray(records) ? records : []).filter((record) => sameRegistrationScope(record, model, fallbackSeries)).length;
+}
+
+function suggestOrderNumber(records, model, fallbackSeries = "Основна діяльність") {
+  const scoped = (Array.isArray(records) ? records : []).filter((record) => sameRegistrationScope(record, model, fallbackSeries));
+  const numbers = scoped
+    .map((record) => Number(String(record?.orderNumber || "").match(/^\s*(\d+)/)?.[1]))
+    .filter(Number.isFinite);
+  const series = String(model?.recordSeries || fallbackSeries);
+  return `${(numbers.length ? Math.max(...numbers) : 0) + 1}${SERIES_SUFFIX[series] || "-о"}`;
+}
+
+
 /* ===== docx.js ===== */
 
 
@@ -1154,8 +1274,10 @@ function verifyGeneratedDocx(model, letterheadAsset = null) {
   if (!documentText.includes("<w:document") || !documentText.includes("<w:body>")) errors.push("Некоректна структура word/document.xml.");
   if (!documentText.includes(xmlEscape(model.title))) errors.push("Заголовок наказу не потрапив до DOCX.");
   if (!documentText.includes(xmlEscape(model.signerName))) errors.push("ПІБ підписанта не потрапив до DOCX.");
-  if (containsPlaceholder(documentText)) errors.push("У сформованому DOCX залишилися службові заповнювачі.");
-  if (model.points?.length && (!documentText.includes("<w:numPr>") || /<w:t[^>]*>\s*1\.\s/u.test(documentText))) errors.push("Пункти наказу не оформлено штатною нумерацією Word.");
+  const modelText = [model.title, model.preamble, ...(model.points || []), model.grounds, ...((model.attachments || []).flatMap((attachment) => [attachment.title, attachment.note, ...(attachment.paragraphs || []), ...(attachment.rows || []).flat()]))].join("\n");
+  if (containsPlaceholder(modelText)) errors.push("У моделі документа залишилися службові заповнювачі.");
+  const numberedPointParagraphs = documentText.match(/<w:p><w:pPr>(?:(?!<\/w:pPr>)[\s\S])*?<w:pStyle w:val="OrderPoint"\/>[\s\S]*?<w:numPr>[\s\S]*?<\/w:numPr>[\s\S]*?<\/w:pPr>[\s\S]*?<\/w:p>/g) || [];
+  if ((model.points || []).length !== numberedPointParagraphs.length) errors.push("Пункти наказу не оформлено штатною нумерацією Word.");
 
   const numberingText = new TextDecoder().decode(files.get("word/numbering.xml") || new Uint8Array());
   if (!numberingText.includes("<w:abstractNum") || !numberingText.includes('w:numFmt w:val="decimal"')) errors.push("Некоректна схема нумерації Word.");
@@ -1311,21 +1433,21 @@ function stylesXml() {
   <w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="360" w:lineRule="auto"/></w:pPr></w:pPrDefault>
 </w:docDefaults>
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="28"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderInstitution"><w:name w:val="Order Institution"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="200"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderInstitutionCode"><w:name w:val="Order Institution Code"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="200"/></w:pPr><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderLetterhead"><w:name w:val="Order Letterhead"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="180"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderWord"><w:name w:val="Order Word"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="180"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderTitle"><w:name w:val="Order Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="300"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderBody"><w:name w:val="Order Body"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="both"/><w:spacing w:after="180" w:line="360" w:lineRule="auto"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderInstitution"><w:name w:val="Order Institution"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="200"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderInstitutionCode"><w:name w:val="Order Institution Code"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="200"/><w:jc w:val="center"/></w:pPr><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderLetterhead"><w:name w:val="Order Letterhead"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="180"/><w:jc w:val="center"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderWord"><w:name w:val="Order Word"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="180"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderTitle"><w:name w:val="Order Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="300"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderBody"><w:name w:val="Order Body"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="180" w:line="360" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderPreamble"><w:name w:val="Order Preamble"/><w:basedOn w:val="OrderBody"/><w:pPr><w:ind w:firstLine="567"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderCommand"><w:name w:val="Order Command"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="160"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderPoint"><w:name w:val="Order Point"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="both"/><w:spacing w:after="140" w:line="360" w:lineRule="auto"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderMeta"><w:name w:val="Order Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="center" w:pos="4500"/><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:after="240"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderPoint"><w:name w:val="Order Point"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="140" w:line="360" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderMeta"><w:name w:val="Order Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="center" w:pos="4819"/><w:tab w:val="right" w:pos="9638"/></w:tabs><w:spacing w:after="240"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderSignature"><w:name w:val="Order Signature"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:before="480" w:after="0"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="AppendixTitle"><w:name w:val="Appendix Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="AppendixReference"><w:name w:val="Appendix Reference"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="right"/><w:spacing w:after="0"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="AppendixTitle"><w:name w:val="Appendix Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="240"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="AppendixReference"><w:name w:val="Appendix Reference"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0"/><w:jc w:val="right"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="AppendixReferenceLast"><w:name w:val="Appendix Reference Last"/><w:basedOn w:val="AppendixReference"/><w:pPr><w:spacing w:after="240"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="TableHeader"><w:name w:val="Table Header"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:rPr><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="TableHeader"><w:name w:val="Table Header"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="TableBody"><w:name w:val="Table Body"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 </w:styles>`;
 }
@@ -1370,7 +1492,9 @@ function documentXml(model, imageInfo) {
   body.push(paragraphXml(model.preamble || "[Преамбула]", { style: "OrderPreamble" }));
   body.push(paragraphXml("НАКАЗУЮ:", { style: "OrderCommand" }));
   model.points.forEach((point) => body.push(numberedParagraphXml(point)));
+  if (model.grounds) body.push(paragraphXml(`Підстава: ${model.grounds}`, { style: "OrderBody" }));
   body.push(signatureXml(model));
+  if ((model.acknowledgements || []).length) body.push(acknowledgementsXml(model.acknowledgements));
   const attachments = model.attachments || [];
   if (attachments.length) {
     body.push(sectionBreakParagraphXml(topTwip, pageWidth, pageHeight, leftTwip, rightTwip, bottomTwip));
@@ -1400,9 +1524,9 @@ function sectionPropertiesXml(topTwip, pageWidth, pageHeight, leftTwip, rightTwi
 function paragraphXml(text, opts = {}) {
   const pPr = [];
   if (opts.style) pPr.push(`<w:pStyle w:val="${xmlEscape(opts.style)}"/>`);
-  if (opts.align) pPr.push(`<w:jc w:val="${opts.align}"/>`);
-  if (opts.firstLineMm) pPr.push(`<w:ind w:firstLine="${mmToTwip(opts.firstLineMm)}"/>`);
   if (opts.after !== undefined) pPr.push(`<w:spacing w:after="${opts.after}" w:line="360" w:lineRule="auto"/>`);
+  if (opts.firstLineMm) pPr.push(`<w:ind w:firstLine="${mmToTwip(opts.firstLineMm)}"/>`);
+  if (opts.align) pPr.push(`<w:jc w:val="${opts.align}"/>`);
   const rPr = runPropsXml(opts);
   return `<w:p>${pPr.length ? `<w:pPr>${pPr.join("")}</w:pPr>` : ""}<w:r>${rPr}<w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
 }
@@ -1418,6 +1542,10 @@ function dateNumberPlaceXml(model) {
   const date = model.orderDate ? formatDateUa(model.orderDate) : "[дата]";
   const place = model.location || "[місце]";
   const number = model.orderNumber ? `№ ${model.orderNumber}` : "№ ____";
+  if (model.placeLayout === "separate") {
+    return `<w:p><w:pPr><w:pStyle w:val="OrderMeta"/><w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs></w:pPr><w:r><w:t>${xmlEscape(date)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(number)}</w:t></w:r></w:p>
+${paragraphXml(place, { align: "center", after: 240 })}`;
+  }
   return `<w:p><w:pPr><w:pStyle w:val="OrderMeta"/></w:pPr>
 <w:r><w:t>${xmlEscape(date)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(place)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(number)}</w:t></w:r></w:p>`;
 }
@@ -1432,12 +1560,30 @@ function signatureXml(model) {
   return `<w:p><w:pPr><w:pStyle w:val="OrderSignature"/></w:pPr><w:r><w:t>${xmlEscape(position)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(name)}</w:t></w:r></w:p>`;
 }
 
+function acknowledgementsXml(rows) {
+  const parts = [paragraphXml("З наказом ознайомлені:", { style: "OrderBody", bold: true })];
+  rows.forEach((row) => {
+    const date = row.date ? formatDateUa(row.date) : "«___» __________ 20__ р.";
+    parts.push(paragraphXml(`_________________   ${row.name || "[Власне ім’я ПРІЗВИЩЕ]"}   ${date}`, { style: "OrderBody" }));
+  });
+  return parts.join("\n");
+}
+
 function attachmentXml(attachment, index, model) {
-  const parts = [
-    paragraphXml(`Додаток ${index}`, { style: "AppendixReference" }),
-    paragraphXml(`до наказу від ${model.orderDate ? formatDateUa(model.orderDate) : "___"} № ${model.orderNumber || "___"}`, { style: "AppendixReferenceLast" }),
-    paragraphXml(attachment.title || `Додаток ${index}`, { style: "AppendixTitle" }),
-  ];
+  const dateNumber = `${model.orderDate ? formatDateUa(model.orderDate) : "___"} № ${model.orderNumber || "___"}`;
+  const institution = model.institutionName || "[Назва закладу]";
+  const reference = attachment.kind === "approved"
+    ? [
+        paragraphXml("ЗАТВЕРДЖЕНО", { style: "AppendixReference", bold: true }),
+        paragraphXml(`Наказ ${institution}`, { style: "AppendixReference" }),
+        paragraphXml(dateNumber, { style: "AppendixReferenceLast" }),
+      ]
+    : [
+        paragraphXml(`Додаток ${index}`, { style: "AppendixReference" }),
+        paragraphXml(`до наказу ${institution}`, { style: "AppendixReference" }),
+        paragraphXml(dateNumber, { style: "AppendixReferenceLast" }),
+      ];
+  const parts = [...reference, paragraphXml(attachment.title || `Додаток ${index}`, { style: "AppendixTitle" })];
   if (attachment.note) parts.push(paragraphXml(attachment.note, { style: "OrderBody" }));
   (attachment.paragraphs || []).forEach((text) => parts.push(paragraphXml(text, { style: "OrderPreamble" })));
   if ((attachment.columns || []).length && (attachment.rows || []).length) parts.push(tableXml(attachment.columns, attachment.rows));
@@ -1452,9 +1598,9 @@ function tableXml(columns, rows) {
   const grid = widths.map((width) => `<w:gridCol w:w="${width}"/>`).join("");
   const rowXml = (cells, header = false) => `<w:tr>${header ? "<w:trPr><w:tblHeader/></w:trPr>" : ""}${columns.map((_, index) => {
     const value = cells[index] || "";
-    return `<w:tc><w:tcPr><w:tcW w:w="${widths[index]}" w:type="dxa"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:start w:w="120" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:end w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>${paragraphXml(value, { style: header ? "TableHeader" : "TableBody" })}</w:tc>`;
+    return `<w:tc><w:tcPr><w:tcW w:w="${widths[index]}" w:type="dxa"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>${paragraphXml(value, { style: header ? "TableHeader" : "TableBody" })}</w:tc>`;
   }).join("")}</w:tr>`;
-  return `<w:tbl><w:tblPr><w:tblW w:w="${totalWidth}" w:type="dxa"/><w:tblInd w:w="120" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="000000"/><w:left w:val="single" w:sz="4" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:color="000000"/><w:right w:val="single" w:sz="4" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:color="000000"/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rowXml(columns, true)}${rows.map((row) => rowXml(row)).join("")}</w:tbl>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="${totalWidth}" w:type="dxa"/><w:tblInd w:w="120" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="000000"/><w:left w:val="single" w:sz="4" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:color="000000"/><w:right w:val="single" w:sz="4" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:color="000000"/></w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${rowXml(columns, true)}${rows.map((row) => rowXml(row)).join("")}</w:tbl>`;
 }
 
 function imageParagraphXml(imageInfo) {
@@ -1501,7 +1647,7 @@ function makeZip(filesMap) {
     const dv = new DataView(local.buffer);
     dv.setUint32(0, 0x04034b50, true);
     dv.setUint16(4, 20, true);
-    dv.setUint16(6, 0, true);
+    dv.setUint16(6, 0x0800, true);
     dv.setUint16(8, 0, true); // STORE
     dv.setUint16(10, dos.time, true);
     dv.setUint16(12, dos.date, true);
@@ -1524,7 +1670,7 @@ function makeZip(filesMap) {
     dv.setUint32(0, 0x02014b50, true);
     dv.setUint16(4, 20, true);
     dv.setUint16(6, 20, true);
-    dv.setUint16(8, 0, true);
+    dv.setUint16(8, 0x0800, true);
     dv.setUint16(10, 0, true);
     dv.setUint16(12, entry.dos.time, true);
     dv.setUint16(14, entry.dos.date, true);
@@ -1597,13 +1743,16 @@ function crc32(bytes) {
 
 
 
+
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 const assert = (condition, message = "Умова не виконана") => { if (!condition) throw new Error(message); };
 const decode = (bytes) => new TextDecoder().decode(bytes);
 
 test("Схеми шаблонів не мають дублів", () => assert(validateTemplateSchemas(ORDER_TEMPLATES).length === 0, validateTemplateSchemas(ORDER_TEMPLATES).join("; ")));
-test("Усі штатні заголовки починаються з «Про»", () => assert(ORDER_TEMPLATES.every((t) => /^Про\b/u.test(t.title))));
+// \b спирається на ASCII \w і після кириличного «Про» межі слова не дає, тому предикат
+// має збігатися з тим, що використовує validateOrder.
+test("Усі штатні заголовки починаються з «Про»", () => assert(ORDER_TEMPLATES.every((t) => /^Про(?:\s|$)/u.test(t.title))));
 test("XML-екранування нейтралізує теги і спецсимволи", () => assert(xmlEscape(`<script x="1">a&b</script>`) === "&lt;script x=&quot;1&quot;&gt;a&amp;b&lt;/script&gt;"));
 test("XML-екранування прибирає заборонені керівні символи", () => assert(xmlEscape(`a\u0001b`) === "ab"));
 test("XML-екранування прибирає U+FFFE та U+FFFF", () => assert(xmlEscape(`a\uFFFEb\uFFFFc`) === "abc"));
@@ -1621,6 +1770,11 @@ test("Місячна навігація охоплює всі місяці на�
 });
 
 test("Ризикові шаблони позначені для додаткової перевірки", () => assert(ORDER_TEMPLATES.some((t) => t.needsVerification === true)));
+test("Кожен шаблон має допустиму реєстраційну серію", () => assert(ORDER_TEMPLATES.every((template) => RECORD_SERIES_OPTIONS.includes(template.recordSeries))));
+test("Легітимні TODO/XXX не вважаються заповнювачами", () => assert(!containsPlaceholder("Кабінет XXX; TODO як назва")));
+test("Структурний заповнювач блокується", () => assert(containsPlaceholder("{{person}}")));
+test("Інформаційне попередження не робить наказ чернеткою", () => assert(isOrderReady({ hasErrors: false, results: [{ level: "warn" }] })));
+test("Попередження про відсутній номер впливає на готовність", () => assert(!isOrderReady({ hasErrors: false, results: [{ level: "warn", affectsReadiness: true }] })));
 
 test("Назва файлу прибирає небезпечні символи", () => assert(!/[<>:"/\\|?*]/.test(sanitizeFilename(`../Наказ:<test>?*`))));
 test("CRC32 відповідає еталону", () => assert(crc32(new TextEncoder().encode("123456789")) === 0xcbf43926));
@@ -1637,6 +1791,24 @@ test("ZIP DOCX має коректні сигнатури PK", () => {
   const zip = buildDocxBytes(sampleModel());
   assert(zip[0] === 0x50 && zip[1] === 0x4b && zip[2] === 0x03 && zip[3] === 0x04, "Немає local ZIP header");
   assert(zip[zip.length - 22] === 0x50 && zip[zip.length - 21] === 0x4b && zip[zip.length - 20] === 0x05 && zip[zip.length - 19] === 0x06, "Немає EOCD");
+  assert(new DataView(zip.buffer, zip.byteOffset, zip.byteLength).getUint16(6, true) === 0x0800, "Не встановлено UTF-8 flag");
+});
+
+test("Нумерований текст затвердженого додатка не блокує DOCX", () => {
+  const model = sampleModel();
+  model.attachments = [{ kind: "approved", title: "Положення", paragraphs: ["1. Загальні положення"] }];
+  const result = verifyGeneratedDocx(model);
+  assert(result.ok, result.errors.join("; "));
+  const xml = decode(result.files.get("word/document.xml"));
+  assert(xml.includes("ЗАТВЕРДЖЕНО"));
+  assert(xml.includes("Наказ Тестовий заклад освіти"));
+});
+
+test("Підказка номера ізольована за роком і серією", () => {
+  const records = [{ id: "1", orderDate: "2026-01-01", orderNumber: "7-о", recordSeries: "Основна діяльність" }];
+  const model = { orderDate: "2026-08-10", orderNumber: "7-о", recordSeries: "Основна діяльність" };
+  assert(suggestOrderNumber(records, model) === "8-о");
+  assert(findDuplicateOrderNumber(records, model)?.id === "1");
 });
 
 test("Шкідливий текст не потрапляє в document.xml як XML-тег", () => {

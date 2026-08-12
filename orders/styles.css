@@ -84,6 +84,9 @@ h3 { color: var(--text); }
 .template-card h3 { margin-bottom: 6px; font-size: 17px; line-height: 1.25; }
 .template-card p { color: #4e5d6a; font-size: 13px; line-height: 1.42; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .template-card-footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-top: auto; padding-top: 9px; border-top: 1px solid var(--line-soft); }
+.template-sample { margin-top: 8px; font-size: 12px; }
+.template-sample summary { cursor: pointer; color: var(--primary); font-weight: 750; }
+.template-sample p { margin: 7px 0 0; padding: 8px; border-radius: 6px; background: #f6f8fa; color: #3f4d5a; line-height: 1.4; }
 .template-months { color: #5a6876; font-size: 11px; }
 .card-action { text-decoration: none; border: 1px solid var(--primary); border-radius: 6px; padding: 6px 9px; min-height: 34px; }
 .card-action:hover { background: var(--primary-soft); text-decoration: none; }
@@ -219,6 +222,13 @@ h3 { color: var(--text); }
 .validation-icon { font-weight: 900; }
 .validation-item strong { display: block; }
 .validation-item small { display: block; margin-top: 2px; color: var(--muted); line-height: 1.35; }
+.validation-item[role="button"] { cursor: pointer; }
+.editor-validation-bar { display: grid; gap: 7px; margin: 12px 0; padding: 10px 12px; border: 1px solid #d6a84f; border-radius: 7px; background: var(--warning-bg); color: #6b4900; }
+.editor-validation-links { display: flex; flex-wrap: wrap; gap: 5px 12px; }
+.field.has-error > input, .field.has-error > textarea, .field.has-error > select { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(172, 35, 35, .1); }
+.field-error { color: var(--danger) !important; font-weight: 750; }
+.number-suggestion { align-self: flex-start; margin-top: 2px; }
+.field-with-action { display: grid; align-content: start; }
 .preview-stage { min-height: 0; overflow: auto; padding: 20px; background: #dfe3e7; }
 .modal-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 16px; border-top: 1px solid var(--line); background: #fff; }
 .modal-actions > div { display: flex; gap: 7px; }
@@ -231,15 +241,21 @@ h3 { color: var(--text); }
 .a4-page .institution-code { text-align: center; font-size: 11pt; margin-bottom: 4mm; }
 .a4-page .order-word { text-align: center; font-weight: 700; letter-spacing: .04em; margin-bottom: 4mm; }
 .a4-page .date-number { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 5mm; }
+.a4-page .order-place { text-align: center; margin: -3mm 0 5mm; }
 .a4-page .order-title { text-align: center; font-weight: 700; margin: 0 auto 6mm; max-width: 145mm; }
 .a4-page .preamble { text-align: justify; text-indent: 10mm; margin-bottom: 4mm; }
 .a4-page .order-command { font-weight: 700; margin: 0 0 4mm; }
 .a4-page .order-point { text-align: justify; padding-left: 10mm; text-indent: -10mm; margin-bottom: 3mm; }
 .a4-page .signature { display: flex; justify-content: space-between; gap: 15mm; margin-top: 14mm; }
 .a4-page .signature span:last-child { text-align: right; white-space: nowrap; }
+.a4-page .grounds { margin: 5mm 0 0; }
+.acknowledgements { margin-top: 9mm; }
+.acknowledgements-title { font-weight: 700; margin-bottom: 3mm; }
+.acknowledgement-row { margin: 0 0 3mm; }
 .a4-page .placeholder { color: #8a330e; background: #fff2df; padding: 0 2px; }
 .preview-attachment { break-before: page; page-break-before: always; padding-top: 12mm; min-height: 255mm; }
 .appendix-reference { max-width: 85mm; margin: 0 0 6mm auto; text-align: left; font-size: 12pt; }
+.appendix-reference.approved-reference { white-space: pre-line; }
 .appendix-title { margin-bottom: 6mm; text-align: center; font-weight: 700; }
 .appendix-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12pt; line-height: 1.25; }
 .appendix-table th, .appendix-table td { border: 1px solid #111; padding: 2mm; vertical-align: top; overflow-wrap: anywhere; }
@@ -247,6 +263,8 @@ h3 { color: var(--text); }
 
 .toast { position: fixed; right: 16px; bottom: 16px; max-width: 390px; background: #14212c; color: #fff; padding: 11px 13px; border-radius: 7px; border: 1px solid #314354; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .15s ease; z-index: 80; }
 .toast.is-visible { opacity: 1; transform: translateY(0); }
+.toast.is-persistent { pointer-events: auto; cursor: pointer; }
+.print-root { display: none; }
 
 @media (max-width: 1220px) {
   .template-grid, .universal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -295,13 +313,15 @@ h3 { color: var(--text); }
   .modal-dialog { width: 100vw; height: 100vh; border-radius: 0; }
   .preview-stage { padding: 10px; }
   .modal-actions > div { display: grid; grid-template-columns: 1fr 1fr; }
-  .a4-page { transform-origin: top left; }
+  .a4-page { transform-origin: top left; zoom: var(--preview-scale, 1); }
 }
 
 @media print {
-  body * { visibility: hidden !important; }
-  #order-preview, #order-preview * { visibility: visible !important; }
+  body > :not(.print-root) { display: none !important; }
   body { background: #fff; }
-  #order-preview { position: absolute; left: 0; top: 0; width: 210mm; min-height: 297mm; box-shadow: none; margin: 0; }
-  @page { size: A4; margin: 0; }
+  .print-root { display: block !important; }
+  #print-document { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; zoom: 1; }
+  #print-document.preprinted { padding-top: calc(var(--preprinted-top, 55mm) - 20mm); }
+  #print-document .preview-attachment { break-before: page; page-break-before: always; min-height: 0; padding-top: 0; }
+  @page { size: A4; margin: 20mm 10mm 20mm 30mm; }
 }

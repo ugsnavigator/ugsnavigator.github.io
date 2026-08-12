@@ -1,8 +1,9 @@
-import { ORDER_TEMPLATES, TEMPLATE_CATEGORIES, ACADEMIC_MONTHS, clean, formatDateUa } from "./templates.js";
-import { DEFAULT_PROFILE, buildOrderModel, validateOrder, validateTemplateSchemas } from "./core.js";
+import { ORDER_TEMPLATES, TEMPLATE_CATEGORIES, ACADEMIC_MONTHS, RECORD_SERIES_OPTIONS, clean, formatDateUa } from "./templates.js";
+import { DEFAULT_PROFILE, buildOrderModel, validateOrder, validateTemplateSchemas, isOrderReady } from "./core.js";
 import { downloadDocx, triggerDownload, verifyGeneratedDocx } from "./docx.js";
 import { loadProfile, saveProfile, loadLetterheadAsset, saveLetterheadAsset, deleteLetterheadAsset, clearAllLocalData, sanitizeProfile, saveOrderRecord, listOrderRecords, deleteOrderRecord, clearOrderRecords, importOrderRecords } from "./storage.js";
 import { validateImageFileBytes, decodeImageDimensions } from "./image.js";
+import { findDuplicateOrderNumber, registrationStats, suggestOrderNumber } from "./registration.js";
 
 const state = {
   profile: loadProfile(),
@@ -12,7 +13,7 @@ const state = {
   search: "",
   showAll: false,
   formData: {},
-  orderMeta: { orderDate: todayIso(), orderNumber: "" },
+  orderMeta: { orderDate: todayIso(), orderNumber: "", recordSeries: "Основна діяльність" },
   letterheadAsset: null,
   letterheadObjectUrl: "",
   schemaErrors: [],
@@ -21,7 +22,11 @@ const state = {
   savedSearch: "",
   editorDirty: false,
   modalReturnFocus: null,
+  previewRefreshTimer: 0,
+  draftSaveTimer: 0,
 };
+
+const SESSION_DRAFT_KEY = "school-order-constructor.working-draft.v1";
 
 const el = (id) => document.getElementById(id);
 const ui = {
@@ -62,6 +67,8 @@ const ui = {
   savedOrdersList: el("saved-orders-list"),
   savedSearch: el("saved-search"),
   saveOrderButton: el("save-order"),
+  editorValidationBar: el("editor-validation-bar"),
+  printRoot: el("print-root"),
 };
 
 init();
@@ -82,6 +89,7 @@ async function init() {
   renderStaffDatalist();
   renderProfileNudge();
   await refreshSavedOrders();
+  restoreSessionDraft();
 
   try {
     const savedAsset = await loadLetterheadAsset();
@@ -156,7 +164,7 @@ function bindEditorActions() {
     if (!state.template) return;
     if (!confirm("Очистити всі введені поля цього наказу та повернути початкові значення шаблону?")) return;
     state.formData = defaultFormData(state.template);
-    state.orderMeta = { orderDate: todayIso(), orderNumber: "" };
+    state.orderMeta = { orderDate: todayIso(), orderNumber: "", recordSeries: state.template.recordSeries };
     state.editorDirty = true;
     renderEditor();
     toast("Поля повернуто до стандартних значень шаблону.");
@@ -197,7 +205,7 @@ function bindSavedOrderActions() {
       const evictionWarning = evicted
         ? ` Резервне сховище переповнилося: вилучено ${evicted} найстаріших записів. Рекомендуємо експортувати резервну копію.`
         : "";
-      toast(`${importMessage}${evictionWarning}`, evicted ? 6000 : 2600);
+      toast(`${importMessage}${evictionWarning}`, evicted ? 0 : 2600);
     } catch (error) {
       console.error(error);
       toast("Не вдалося імпортувати збережені накази.");
@@ -230,16 +238,19 @@ async function saveCurrentOrder() {
     letterheadAsset: state.letterheadAsset,
     allowDraft: true,
   });
+  const duplicate = findDuplicateRegistration(model);
+  if (duplicate) validation.results.push({ level: "warn", title: "Можливий дублікат номера наказу", affectsReadiness: true });
   const existing = state.savedOrderId ? state.savedOrders.find((x) => x.id === state.savedOrderId) : null;
   const now = new Date().toISOString();
   const record = {
     id: state.savedOrderId || createLocalId(),
     templateId: state.template.id,
-    title: state.template.title,
+    title: model.title,
     category: state.template.category,
+    recordSeries: model.recordSeries,
     orderDate: state.orderMeta.orderDate,
     orderNumber: state.orderMeta.orderNumber,
-    status: validation.hasErrors || validation.results.some((result) => result.level === "warn") ? "draft" : "ready",
+    status: isOrderReady(validation) ? "ready" : "draft",
     createdAt: existing?.createdAt || now,
     updatedAt: now,
     formData: cloneJson(state.formData),
@@ -248,17 +259,18 @@ async function saveCurrentOrder() {
     const saved = await saveOrderRecord(record);
     state.savedOrderId = saved.id;
     state.editorDirty = false;
+    clearSessionDraft();
     await refreshSavedOrders(false);
     renderEditor();
     const saveMessage = saved.status === "ready"
       ? "Наказ збережено."
       : validation.hasErrors
         ? "Збережено як чернетку: є незаповнені або некоректні обов’язкові дані."
-        : "Збережено як чернетку: залишилися попередження для перевірки.";
+        : "Збережено як чернетку: залишилися перевірки, що впливають на готовність.";
     const evictionWarning = saved.fallbackEvicted
       ? ` Резервне сховище переповнилося: вилучено ${saved.fallbackEvicted} найстаріших записів. Рекомендуємо експортувати резервну копію.`
       : "";
-    toast(`${saveMessage}${evictionWarning}`, saved.fallbackEvicted ? 6000 : 2600);
+    toast(`${saveMessage}${evictionWarning}`, saved.fallbackEvicted ? 0 : 2600);
   } catch (error) {
     console.error(error);
     toast("Не вдалося зберегти наказ у цьому браузері.");
@@ -333,6 +345,7 @@ function openSavedOrder(record, asCopy) {
   state.orderMeta = {
     orderDate: asCopy ? todayIso() : (record.orderDate || todayIso()),
     orderNumber: asCopy ? "" : (record.orderNumber || ""),
+    recordSeries: record.recordSeries || t.recordSeries,
   };
   state.editorDirty = false;
   renderEditor();
@@ -372,6 +385,8 @@ function bindModalActions() {
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   });
+  window.addEventListener("afterprint", clearPrintRoot);
+  window.addEventListener("resize", updatePreviewScale);
 }
 
 function bindProfileActions() {
@@ -551,6 +566,7 @@ function renderMonthNav() {
     button.className = "month-button";
     const isActive = month.id === state.selectedMonth && !state.showAll && !clean(state.search);
     button.classList.toggle("is-active", isActive);
+    button.dataset.monthId = month.id;
     button.setAttribute("aria-label", `Показати шаблони на ${month.name.toLocaleLowerCase("uk-UA")}`);
     button.setAttribute("aria-pressed", String(isActive));
     const short = document.createElement("span"); short.className = "month-short"; short.textContent = month.short;
@@ -561,8 +577,8 @@ function renderMonthNav() {
       state.showAll = false;
       state.search = "";
       ui.search.value = "";
-      renderMonthNav();
       renderCatalog();
+      ui.monthNav.querySelector(`[data-month-id="${month.id}"]`)?.focus();
     });
     ui.monthNav.appendChild(button);
   });
@@ -639,16 +655,41 @@ function createTemplateCard(t, compact = false) {
   if (t.needsVerification) {
     const warn = document.createElement("div"); warn.className = "card-warning"; warn.textContent = "Перед використанням перевірте актуальну нормативну підставу."; card.appendChild(warn);
   }
+  const sample = document.createElement("details"); sample.className = "template-sample";
+  const sampleSummary = document.createElement("summary"); sampleSummary.textContent = "Зразок формулювання";
+  const sampleText = document.createElement("p"); sampleText.textContent = templateSampleText(t);
+  sample.append(sampleSummary, sampleText); card.appendChild(sample);
   card.appendChild(footer);
-  card.addEventListener("dblclick", () => selectTemplate(t));
   return card;
+}
+
+function templateSampleText(template) {
+  const sampleData = Object.fromEntries((template.fields || []).map((field) => [field.id, sampleFieldValue(field)]));
+  try {
+    const built = template.build(sampleData);
+    return [built.preamble, ...(built.points || []).slice(0, 2)].filter(Boolean).join(" ");
+  } catch {
+    return "Типове формулювання буде сформовано після заповнення обов’язкових полів.";
+  }
+}
+
+function sampleFieldValue(field) {
+  if (field.type === "repeatable") return [Object.fromEntries((field.fields || []).map((child) => [child.id, sampleFieldValue(child)]))];
+  if (field.default !== undefined && field.default !== "") return field.default;
+  if (field.type === "date") return "2026-09-01";
+  if (field.type === "number") return field.min || 1;
+  if (field.type === "select") return typeof field.options?.[0] === "string" ? field.options[0] : field.options?.[0]?.value || "значення";
+  if (field.id === "customTitle") return "Про організацію роботи";
+  if (field.id === "preamble") return "З метою належної організації роботи закладу";
+  if (field.id === "documentText") return "1. Загальні положення";
+  return field.required ? `[${String(field.label || field.id).replace(/\s*\*$/, "")}]` : "";
 }
 
 function selectTemplate(t) {
   state.template = t;
   state.savedOrderId = "";
   state.formData = defaultFormData(t);
-  state.orderMeta = { orderDate: todayIso(), orderNumber: "" };
+  state.orderMeta = { orderDate: todayIso(), orderNumber: "", recordSeries: t.recordSeries };
   state.editorDirty = false;
   renderEditor();
   ui.catalogView.classList.add("is-hidden");
@@ -683,6 +724,7 @@ function renderEditor() {
   ui.templateNotice.classList.toggle("is-hidden", !noticeText && !state.template.legalReview?.sourceUrl);
   renderEditorBadges();
   renderOrderForm();
+  renderEditorValidation();
   updateProfileWarning();
   if (ui.saveOrderButton) ui.saveOrderButton.textContent = state.savedOrderId ? "Зберегти зміни" : "Зберегти наказ";
 }
@@ -691,7 +733,7 @@ function renderEditorBadges() {
   ui.editorBadges.replaceChildren();
   const items = [
     state.template.frequency,
-    `Серія: ${state.template.recordSeries || "Основна діяльність"}`,
+    `Серія: ${state.orderMeta.recordSeries || state.template.recordSeries || "Основна діяльність"}`,
     state.template.months?.length ? state.template.months.map(monthShortById).join(" · ") : "У будь-який час",
   ];
   items.forEach((textValue) => {
@@ -705,7 +747,12 @@ function renderOrderForm() {
   const primary = document.createElement("div");
   primary.className = "form-grid two-col form-section";
   primary.appendChild(createSimpleInput({ id: "orderDate", label: "Дата наказу *", type: "date", required: true }, state.orderMeta, (v) => { state.orderMeta.orderDate = v; markEditorDirty(); }));
-  primary.appendChild(createSimpleInput({ id: "orderNumber", label: "Номер наказу *", type: "text", maxlength: 40, placeholder: "наприклад: 125-о" }, state.orderMeta, (v) => { state.orderMeta.orderNumber = v; markEditorDirty(); }));
+  const numberField = createSimpleInput({ id: "orderNumber", label: "Номер наказу *", type: "text", maxlength: 40, placeholder: "наприклад: 125-о", help: registrationNumberHelp() }, state.orderMeta, (v) => { state.orderMeta.orderNumber = v; markEditorDirty(); });
+  const suggest = document.createElement("button"); suggest.type = "button"; suggest.className = "text-button number-suggestion"; suggest.textContent = `Запропонувати ${suggestNextOrderNumber()}`;
+  suggest.addEventListener("click", () => { state.orderMeta.orderNumber = suggestNextOrderNumber(); renderOrderForm(); markEditorDirty(); ui.form.querySelector('[name="orderNumber"]')?.focus(); });
+  const numberWrap = document.createElement("div"); numberWrap.className = "field-with-action"; numberWrap.append(numberField, suggest);
+  primary.appendChild(numberWrap);
+  primary.appendChild(createSimpleInput({ id: "recordSeries", label: "Серія реєстрації *", type: "select", required: true, options: RECORD_SERIES_OPTIONS, help: "Звірте з локальною інструкцією та номенклатурою справ закладу." }, state.orderMeta, (v) => { state.orderMeta.recordSeries = v; renderEditorBadges(); markEditorDirty(); }));
   ui.form.appendChild(primary);
 
   const regular = state.template.fields.filter((field) => !field.advanced);
@@ -731,7 +778,7 @@ function createField(field, target) {
 }
 
 function createSimpleInput(field, target, onChange) {
-  const label = document.createElement("label"); label.className = "field";
+  const label = document.createElement("label"); label.className = "field"; label.dataset.fieldId = field.id;
   const caption = document.createElement("span"); caption.textContent = field.label;
   let input;
 
@@ -759,10 +806,24 @@ function createSimpleInput(field, target, onChange) {
   if (field.max !== undefined) input.max = String(field.max);
   if (field.placeholder) input.placeholder = field.placeholder;
   const eventName = field.type === "select" ? "change" : "input";
-  input.addEventListener(eventName, () => onChange(input.value));
+  input.addEventListener(eventName, () => {
+    label.classList.remove("has-error");
+    label.querySelectorAll(".field-error").forEach((node) => node.remove());
+    onChange(input.value);
+  });
   label.append(caption, input);
   if (field.help) { const small = document.createElement("small"); small.textContent = field.help; label.appendChild(small); }
   return label;
+}
+
+function registrationNumberHelp() {
+  const year = String(state.orderMeta.orderDate || todayIso()).slice(0, 4);
+  const count = registrationStats(state.savedOrders, state.orderMeta, state.template?.recordSeries);
+  return count ? `У локальній бібліотеці за ${year} рік у цій серії: ${count}. Підказка є довідковою, звіртеся з журналом реєстрації.` : "У локальній бібліотеці ще немає номерів цієї серії за обраний рік.";
+}
+
+function suggestNextOrderNumber() {
+  return suggestOrderNumber(state.savedOrders, state.orderMeta, state.template?.recordSeries);
 }
 
 function createRepeatable(field, target) {
@@ -827,7 +888,7 @@ function openPreview(requestedAction = "") {
   if (!state.template) return;
   state.modalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   renderPreview();
-  const report = runValidation();
+  const report = runValidation({ technical: requestedAction === "download" || requestedAction === "print" });
   renderValidation(report);
   ui.previewModal.classList.remove("is-hidden");
   ui.previewModal.setAttribute("aria-hidden", "false");
@@ -881,22 +942,41 @@ function renderPreview() {
   const d = document.createElement("span"); d.textContent = model.orderDate ? formatDateUa(model.orderDate) : "дата"; if (!model.orderDate) d.className = "placeholder";
   const place = document.createElement("span"); place.textContent = model.location || "місце"; if (!model.location) place.className = "placeholder";
   const n = document.createElement("span"); n.textContent = model.orderNumber ? `№ ${model.orderNumber}` : "№ ____";
-  meta.append(d, place, n); ui.preview.appendChild(meta);
+  if (model.placeLayout === "separate") {
+    meta.append(d, n); ui.preview.appendChild(meta);
+    appendPreviewText(ui.preview, place.textContent, `order-place${!model.location ? " placeholder" : ""}`);
+  } else {
+    meta.append(d, place, n); ui.preview.appendChild(meta);
+  }
 
   appendPreviewText(ui.preview, model.title || "Про …", "order-title", !model.title);
   appendPreviewText(ui.preview, model.preamble || "Преамбула / підстава", "preamble", !model.preamble);
   appendPreviewText(ui.preview, "НАКАЗУЮ:", "order-command");
   if (model.points.length) model.points.forEach((point, i) => appendPreviewText(ui.preview, `${i + 1}. ${point}`, "order-point"));
   else appendPreviewText(ui.preview, "1. Пункт наказу", "order-point placeholder");
+  if (model.grounds) appendPreviewText(ui.preview, `Підстава: ${model.grounds}`, "grounds");
 
   const sig = document.createElement("div"); sig.className = "signature";
   const pos = document.createElement("span"); pos.textContent = model.signerPosition || "Посада"; if (!model.signerPosition) pos.className = "placeholder";
   const name = document.createElement("span"); name.textContent = model.signerName || "ПІБ"; if (!model.signerName) name.className = "placeholder";
   sig.append(pos, name); ui.preview.appendChild(sig);
 
+  if (model.acknowledgements?.length) {
+    const block = document.createElement("section"); block.className = "acknowledgements";
+    appendPreviewText(block, "З наказом ознайомлені:", "acknowledgements-title");
+    model.acknowledgements.forEach((row) => appendPreviewText(block, `_________________   ${row.name || "Власне ім’я ПРІЗВИЩЕ"}   ${row.date ? formatDateUa(row.date) : "«___» __________ 20__ р."}`, "acknowledgement-row"));
+    ui.preview.appendChild(block);
+  }
+
   (model.attachments || []).forEach((attachment, index) => {
     const section = document.createElement("section"); section.className = "preview-attachment";
-    appendPreviewText(section, `Додаток ${index + 1} до наказу від ${model.orderDate ? formatDateUa(model.orderDate) : "___"} № ${model.orderNumber || "___"}`, "appendix-reference");
+    const dateNumber = `${model.orderDate ? formatDateUa(model.orderDate) : "___"} № ${model.orderNumber || "___"}`;
+    const institution = model.institutionName || "Назва закладу";
+    if (attachment.kind === "approved") {
+      appendPreviewText(section, `ЗАТВЕРДЖЕНО\nНаказ ${institution}\n${dateNumber}`, "appendix-reference approved-reference");
+    } else {
+      appendPreviewText(section, `Додаток ${index + 1}\nдо наказу ${institution}\n${dateNumber}`, "appendix-reference");
+    }
     appendPreviewText(section, attachment.title || `Додаток ${index + 1}`, "appendix-title");
     if (attachment.note) appendPreviewText(section, attachment.note, "preamble");
     (attachment.paragraphs || []).forEach((paragraph) => appendPreviewText(section, paragraph, "preamble"));
@@ -911,6 +991,16 @@ function renderPreview() {
     }
     ui.preview.appendChild(section);
   });
+  requestAnimationFrame(updatePreviewScale);
+}
+
+function updatePreviewScale() {
+  const stage = ui.preview?.parentElement;
+  if (!stage || !ui.preview) return;
+  const available = Math.max(280, stage.clientWidth - 20);
+  const naturalWidth = 794;
+  const scale = window.matchMedia("(max-width: 700px)").matches ? Math.min(1, available / naturalWidth) : 1;
+  ui.preview.style.setProperty("--preview-scale", String(scale));
 }
 
 function appendPreviewText(parent, textValue, className, placeholder = false) {
@@ -921,7 +1011,7 @@ function appendPreviewText(parent, textValue, className, placeholder = false) {
   parent.appendChild(p);
 }
 
-function runValidation() {
+function runValidation({ technical = false } = {}) {
   let model;
   try { model = currentModel(); }
   catch (error) {
@@ -931,17 +1021,61 @@ function runValidation() {
   const report = validateOrder({ template: state.template, rawData: state.formData, model, profile: state.profile, letterheadAsset: state.letterheadAsset });
   const results = report.results.filter((r) => r.level !== "ok");
 
+  const duplicate = findDuplicateRegistration(model);
+  if (duplicate) results.push({ level: "warn", title: "Можливий дублікат номера наказу", detail: `У локальній бібліотеці вже є № ${model.orderNumber} у цій серії за ${model.orderDate.slice(0, 4)} рік. Звірте журнал реєстрації.`, fieldId: "orderNumber", affectsReadiness: true });
+
   if (state.template.needsVerification) {
     results.unshift({ level: "warn", title: "Потрібна перевірка актуальної нормативної підстави", detail: state.template.notice || "Перевірте чинні правила на дату видання наказу." });
   }
 
-  const technical = verifyGeneratedDocx(model, state.letterheadAsset);
-  if (!technical.ok) {
-    console.error("DOCX verification errors:", technical.errors);
-    results.push({ level: "error", title: "Файл DOCX не пройшов внутрішню перевірку", detail: "Експорт заблоковано. Не використовуйте сформований документ." });
+  let technicalResult = null;
+  if (technical) {
+    technicalResult = verifyGeneratedDocx(model, state.letterheadAsset);
+    if (!technicalResult.ok) {
+      console.error("DOCX verification errors:", technicalResult.errors);
+      results.push({ level: "error", title: "Файл DOCX не пройшов внутрішню перевірку", detail: technicalResult.errors.join(" ") || "Експорт заблоковано. Не використовуйте сформований документ." });
+    }
   }
 
-  return { results, hasErrors: report.hasErrors || !technical.ok, technical };
+  return { results, hasErrors: report.hasErrors || Boolean(technicalResult && !technicalResult.ok), technical: technicalResult };
+}
+
+function findDuplicateRegistration(model) {
+  return findDuplicateOrderNumber(state.savedOrders, model, state.savedOrderId, state.template.recordSeries);
+}
+
+function renderEditorValidation() {
+  if (!ui.editorValidationBar || !state.template) return;
+  ui.form.querySelectorAll(".field.has-error").forEach((field) => field.classList.remove("has-error"));
+  ui.form.querySelectorAll(".field-error").forEach((node) => node.remove());
+  const report = runValidation();
+  const actionable = report.results.filter((result) => result.level === "error" || result.affectsReadiness === true);
+  ui.editorValidationBar.replaceChildren();
+  ui.editorValidationBar.classList.toggle("is-hidden", actionable.length === 0);
+  if (!actionable.length) return;
+  const summary = document.createElement("strong"); summary.textContent = `Потрібно перевірити: ${actionable.length}`; ui.editorValidationBar.appendChild(summary);
+  const list = document.createElement("div"); list.className = "editor-validation-links";
+  actionable.forEach((result) => {
+    const target = result.fieldId ? ui.form.querySelector(`[name="${CSS.escape(result.fieldId)}"]`) : null;
+    if (target) {
+      const field = target.closest(".field"); field?.classList.add("has-error");
+      if (result.level === "error" && field && !field.querySelector(".field-error")) {
+        const error = document.createElement("small"); error.className = "field-error"; error.textContent = result.title; field.appendChild(error);
+      }
+    }
+    const button = document.createElement("button"); button.type = "button"; button.className = "inline-link"; button.textContent = result.title;
+    button.addEventListener("click", () => focusValidationTarget(result)); list.appendChild(button);
+  });
+  ui.editorValidationBar.appendChild(list);
+}
+
+function focusValidationTarget(result) {
+  if (!result?.fieldId) return;
+  const target = ui.form.querySelector(`[name="${CSS.escape(result.fieldId)}"]`);
+  if (!target) return;
+  if (!ui.previewModal.classList.contains("is-hidden")) closePreview();
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.focus({ preventScroll: true });
 }
 
 function renderValidation(report) {
@@ -969,7 +1103,9 @@ function renderValidation(report) {
     const body = document.createElement("div");
     const strong = document.createElement("strong"); strong.textContent = r.title; body.appendChild(strong);
     if (r.detail) { const small = document.createElement("small"); small.textContent = r.detail; body.appendChild(small); }
-    row.append(icon, body); ui.validationResults.appendChild(row);
+    row.append(icon, body);
+    if (r.fieldId) { row.tabIndex = 0; row.setAttribute("role", "button"); row.addEventListener("click", () => focusValidationTarget(r)); row.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); focusValidationTarget(r); } }); }
+    ui.validationResults.appendChild(row);
   });
   el("modal-download").disabled = report.hasErrors;
   el("modal-print").disabled = report.hasErrors;
@@ -979,7 +1115,7 @@ function attemptDownload() {
   if (!state.template) return;
   if (ui.previewModal.classList.contains("is-hidden")) { openPreview("download"); return; }
   if (state.schemaErrors.length) { toast("Експорт заблоковано внутрішньою перевіркою шаблонів."); return; }
-  const report = runValidation();
+  const report = runValidation({ technical: true });
   if (report.hasErrors) {
     renderPreview();
     renderValidation(report);
@@ -999,7 +1135,7 @@ function attemptDownload() {
 function attemptPrint() {
   if (!state.template) return;
   if (ui.previewModal.classList.contains("is-hidden")) { openPreview("print"); return; }
-  const report = runValidation();
+  const report = runValidation({ technical: true });
   if (report.hasErrors) {
     renderPreview();
     renderValidation(report);
@@ -1008,7 +1144,25 @@ function attemptPrint() {
     return;
   }
   renderPreview();
+  preparePrintRoot();
   requestAnimationFrame(() => window.print());
+}
+
+function preparePrintRoot() {
+  if (!ui.printRoot) return;
+  ui.printRoot.replaceChildren();
+  const clone = ui.preview.cloneNode(true);
+  clone.id = "print-document";
+  clone.style.removeProperty("--preview-scale");
+  clone.style.zoom = "1";
+  ui.printRoot.appendChild(clone);
+  ui.printRoot.setAttribute("aria-hidden", "false");
+}
+
+function clearPrintRoot() {
+  if (!ui.printRoot) return;
+  ui.printRoot.replaceChildren();
+  ui.printRoot.setAttribute("aria-hidden", "true");
 }
 
 function populateProfileForm() {
@@ -1041,6 +1195,8 @@ function renderStaffEditor(source = state.profile.staff || []) {
       const next = collectStaffFromEditor();
       next.splice(index, 1);
       renderStaffEditor(next);
+      const buttons = ui.staffEditor.querySelectorAll(".staff-remove");
+      buttons[Math.min(index, buttons.length - 1)]?.focus();
     });
     wrap.append(position, name, remove);
     ui.staffEditor.appendChild(wrap);
@@ -1058,9 +1214,9 @@ function collectStaffFromEditor() {
 function renderStaffDatalist() {
   ui.staffSuggestions.replaceChildren();
   (state.profile.staff || []).forEach((row) => {
-    const value = [clean(row.position), clean(row.name)].filter(Boolean).join(" — ");
+    const value = [clean(row.position), clean(row.name)].filter(Boolean).join(" ");
     if (!value) return;
-    const option = document.createElement("option"); option.value = value; ui.staffSuggestions.appendChild(option);
+    const option = document.createElement("option"); option.value = value; option.label = "Відредагуйте формулювання у потрібному відмінку"; ui.staffSuggestions.appendChild(option);
   });
 }
 
@@ -1137,7 +1293,13 @@ function modeLabel(mode) {
 
 function markEditorDirty() {
   state.editorDirty = true;
-  refreshPreviewIfOpen();
+  window.clearTimeout(state.previewRefreshTimer);
+  state.previewRefreshTimer = window.setTimeout(() => {
+    refreshPreviewIfOpen();
+    renderEditorValidation();
+  }, 250);
+  window.clearTimeout(state.draftSaveTimer);
+  state.draftSaveTimer = window.setTimeout(saveSessionDraft, 350);
 }
 
 function confirmLeaveEditor() {
@@ -1145,7 +1307,46 @@ function confirmLeaveEditor() {
   if (!editorVisible || !state.editorDirty) return true;
   if (!confirm("Є незбережені зміни в наказі. Вийти без збереження?")) return false;
   state.editorDirty = false;
+  clearSessionDraft();
   return true;
+}
+
+function saveSessionDraft() {
+  if (!state.template || !state.editorDirty) return;
+  try {
+    sessionStorage.setItem(SESSION_DRAFT_KEY, JSON.stringify({
+      version: 1,
+      templateId: state.template.id,
+      formData: state.formData,
+      orderMeta: state.orderMeta,
+      updatedAt: new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.warn("Session draft was not saved", error);
+  }
+}
+
+function clearSessionDraft() {
+  window.clearTimeout(state.draftSaveTimer);
+  try { sessionStorage.removeItem(SESSION_DRAFT_KEY); } catch { /* storage may be unavailable */ }
+}
+
+function restoreSessionDraft() {
+  let draft;
+  try { draft = JSON.parse(sessionStorage.getItem(SESSION_DRAFT_KEY) || "null"); } catch { clearSessionDraft(); return; }
+  const template = ORDER_TEMPLATES.find((item) => item.id === draft?.templateId);
+  if (!template || draft?.version !== 1) { clearSessionDraft(); return; }
+  if (!confirm(`Знайдено незавершену робочу чернетку від ${formatDateTimeUa(draft.updatedAt)}. Відновити її?`)) { clearSessionDraft(); return; }
+  state.template = template;
+  state.savedOrderId = "";
+  state.formData = { ...defaultFormData(template), ...cloneJson(draft.formData || {}) };
+  state.orderMeta = { orderDate: todayIso(), orderNumber: "", recordSeries: template.recordSeries, ...cloneJson(draft.orderMeta || {}) };
+  state.editorDirty = true;
+  renderEditor();
+  ui.catalogView.classList.add("is-hidden");
+  ui.editorView.classList.remove("is-hidden");
+  setView("orders");
+  toast("Робочу чернетку відновлено.");
 }
 
 function currentMonthId() {
@@ -1192,8 +1393,11 @@ let toastTimer;
 function toast(message, duration = 2600) {
   ui.toast.textContent = message;
   ui.toast.classList.add("is-visible");
+  ui.toast.classList.toggle("is-persistent", duration <= 0);
+  ui.toast.title = duration <= 0 ? "Натисніть, щоб закрити" : "";
+  ui.toast.onclick = duration <= 0 ? () => { ui.toast.classList.remove("is-visible", "is-persistent"); ui.toast.onclick = null; } : null;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => ui.toast.classList.remove("is-visible"), duration);
+  if (duration > 0) toastTimer = setTimeout(() => ui.toast.classList.remove("is-visible"), duration);
 }
 
 function createLocalId() {

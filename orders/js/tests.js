@@ -1,7 +1,8 @@
-import { ORDER_TEMPLATES, ACADEMIC_MONTHS } from "./templates.js";
-import { DEFAULT_PROFILE, xmlEscape, sanitizeFilename, validateTemplateSchemas, buildOrderModel, validateOrder } from "./core.js";
-import { buildDocxFiles, buildDocxBytes, crc32 } from "./docx.js";
+import { ORDER_TEMPLATES, ACADEMIC_MONTHS, RECORD_SERIES_OPTIONS } from "./templates.js";
+import { DEFAULT_PROFILE, xmlEscape, sanitizeFilename, validateTemplateSchemas, buildOrderModel, validateOrder, containsPlaceholder, isOrderReady } from "./core.js";
+import { buildDocxFiles, buildDocxBytes, crc32, verifyGeneratedDocx } from "./docx.js";
 import { detectImageMime, validateImageFileBytes } from "./image.js";
+import { findDuplicateOrderNumber, suggestOrderNumber } from "./registration.js";
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
@@ -9,7 +10,9 @@ const assert = (condition, message = "Умова не виконана") => { if
 const decode = (bytes) => new TextDecoder().decode(bytes);
 
 test("Схеми шаблонів не мають дублів", () => assert(validateTemplateSchemas(ORDER_TEMPLATES).length === 0, validateTemplateSchemas(ORDER_TEMPLATES).join("; ")));
-test("Усі штатні заголовки починаються з «Про»", () => assert(ORDER_TEMPLATES.every((t) => /^Про\b/u.test(t.title))));
+// \b спирається на ASCII \w і після кириличного «Про» межі слова не дає, тому предикат
+// має збігатися з тим, що використовує validateOrder.
+test("Усі штатні заголовки починаються з «Про»", () => assert(ORDER_TEMPLATES.every((t) => /^Про(?:\s|$)/u.test(t.title))));
 test("XML-екранування нейтралізує теги і спецсимволи", () => assert(xmlEscape(`<script x="1">a&b</script>`) === "&lt;script x=&quot;1&quot;&gt;a&amp;b&lt;/script&gt;"));
 test("XML-екранування прибирає заборонені керівні символи", () => assert(xmlEscape(`a\u0001b`) === "ab"));
 test("XML-екранування прибирає U+FFFE та U+FFFF", () => assert(xmlEscape(`a\uFFFEb\uFFFFc`) === "abc"));
@@ -27,6 +30,11 @@ test("Місячна навігація охоплює всі місяці на�
 });
 
 test("Ризикові шаблони позначені для додаткової перевірки", () => assert(ORDER_TEMPLATES.some((t) => t.needsVerification === true)));
+test("Кожен шаблон має допустиму реєстраційну серію", () => assert(ORDER_TEMPLATES.every((template) => RECORD_SERIES_OPTIONS.includes(template.recordSeries))));
+test("Легітимні TODO/XXX не вважаються заповнювачами", () => assert(!containsPlaceholder("Кабінет XXX; TODO як назва")));
+test("Структурний заповнювач блокується", () => assert(containsPlaceholder("{{person}}")));
+test("Інформаційне попередження не робить наказ чернеткою", () => assert(isOrderReady({ hasErrors: false, results: [{ level: "warn" }] })));
+test("Попередження про відсутній номер впливає на готовність", () => assert(!isOrderReady({ hasErrors: false, results: [{ level: "warn", affectsReadiness: true }] })));
 
 test("Назва файлу прибирає небезпечні символи", () => assert(!/[<>:"/\\|?*]/.test(sanitizeFilename(`../Наказ:<test>?*`))));
 test("CRC32 відповідає еталону", () => assert(crc32(new TextEncoder().encode("123456789")) === 0xcbf43926));
@@ -43,6 +51,24 @@ test("ZIP DOCX має коректні сигнатури PK", () => {
   const zip = buildDocxBytes(sampleModel());
   assert(zip[0] === 0x50 && zip[1] === 0x4b && zip[2] === 0x03 && zip[3] === 0x04, "Немає local ZIP header");
   assert(zip[zip.length - 22] === 0x50 && zip[zip.length - 21] === 0x4b && zip[zip.length - 20] === 0x05 && zip[zip.length - 19] === 0x06, "Немає EOCD");
+  assert(new DataView(zip.buffer, zip.byteOffset, zip.byteLength).getUint16(6, true) === 0x0800, "Не встановлено UTF-8 flag");
+});
+
+test("Нумерований текст затвердженого додатка не блокує DOCX", () => {
+  const model = sampleModel();
+  model.attachments = [{ kind: "approved", title: "Положення", paragraphs: ["1. Загальні положення"] }];
+  const result = verifyGeneratedDocx(model);
+  assert(result.ok, result.errors.join("; "));
+  const xml = decode(result.files.get("word/document.xml"));
+  assert(xml.includes("ЗАТВЕРДЖЕНО"));
+  assert(xml.includes("Наказ Тестовий заклад освіти"));
+});
+
+test("Підказка номера ізольована за роком і серією", () => {
+  const records = [{ id: "1", orderDate: "2026-01-01", orderNumber: "7-о", recordSeries: "Основна діяльність" }];
+  const model = { orderDate: "2026-08-10", orderNumber: "7-о", recordSeries: "Основна діяльність" };
+  assert(suggestOrderNumber(records, model) === "8-о");
+  assert(findDuplicateOrderNumber(records, model)?.id === "1");
 });
 
 test("Шкідливий текст не потрапляє в document.xml як XML-тег", () => {

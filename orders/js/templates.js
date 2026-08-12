@@ -53,6 +53,16 @@ const baseAdvanced = () => [
     maxlength: 220,
     placeholder: "Залиште порожнім — директор залишить контроль за собою",
   }),
+  textarea("grounds", "Підстава (окремий реквізит)", {
+    advanced: true,
+    maxlength: 1600,
+    placeholder: "Наприклад: заява Ірини ІВАНОВОЇ від 01.09.2026",
+    help: "Необов’язково. Використовуйте для наказів, де після розпорядчої частини потрібен окремий реквізит «Підстава:».",
+  }),
+  repeatable("acknowledgements", "З наказом ознайомлені", [
+    person("name", "Власне ім’я та ПРІЗВИЩЕ *", { required: true, maxlength: 220 }),
+    date("date", "Дата ознайомлення", {}),
+  ], { advanced: true, maxItems: 100, help: "Необов’язковий блок підписів. За локальною інструкцією замість нього може використовуватися окремий аркуш ознайомлення." }),
 ];
 
 const LEGAL_SENSITIVE_TEMPLATES = new Set([
@@ -71,10 +81,40 @@ const LEGAL_SENSITIVE_TEMPLATES = new Set([
   "preliminary-tariffication",
 ]);
 
-const RECORD_SERIES = Object.freeze({
-  "Кадрові": "Кадрові питання",
-  "Учні": "Рух здобувачів освіти",
-  "Адміністративно-господарські": "Адміністративно-господарські питання",
+export const RECORD_SERIES_OPTIONS = Object.freeze([
+  "Основна діяльність",
+  "Рух здобувачів освіти",
+  "Адміністративно-господарські питання",
+  "Кадрові питання",
+]);
+
+const RECORD_SERIES_BY_TEMPLATE = Object.freeze({
+  "school-year-organization": "Основна діяльність",
+  "pedagogical-workload": "Основна діяльність",
+  "responsible-safety": "Основна діяльність",
+  "student-enrollment": "Рух здобувачів освіти",
+  "school-meals": "Основна діяльність",
+  "class-teachers": "Основна діяльність",
+  "attestation-commission": "Основна діяльність",
+  "adaptation-grade-1-5": "Основна діяльність",
+  "school-olympiad": "Основна діяльність",
+  "documentation-check": "Основна діяльність",
+  "attestation-list-schedule": "Основна діяльність",
+  "semester-results": "Основна діяльність",
+  "winter-break-plan": "Основна діяльність",
+  "winter-safety": "Основна діяльність",
+  "olympiad-results": "Основна діяльність",
+  "attestation-results": "Кадрові питання",
+  "school-year-end": "Основна діяльність",
+  "first-grade-admission": "Рух здобувачів освіти",
+  "dpa-exemption": "Основна діяльність",
+  "education-documents": "Основна діяльність",
+  "student-promotion": "Рух здобувачів освіти",
+  "preliminary-tariffication": "Основна діяльність",
+  "responsible-person": "Основна діяльність",
+  "commission": "Основна діяльність",
+  "approve-document": "Основна діяльність",
+  "free-order": "Основна діяльність",
 });
 
 function template(config) {
@@ -96,7 +136,7 @@ function template(config) {
     ...config,
     fields,
     needsVerification,
-    recordSeries: config.recordSeries || RECORD_SERIES[config.category] || "Основна діяльність",
+    recordSeries: config.recordSeries || RECORD_SERIES_BY_TEMPLATE[config.id] || "Основна діяльність",
     legalReview: needsVerification ? {
       reviewedAt: "2026-08-10",
       note: "Перед підписанням звірте підставу з чинною редакцією акта та локальною інструкцією з діловодства.",
@@ -204,8 +244,8 @@ export const ORDER_TEMPLATES = [
     ],
     build(data) {
       const students = (Array.isArray(data.students) ? data.students : [])
-        .map((s) => `${clean(s.name)} — до ${clean(s.className)} класу`)
-        .filter((x) => !/^\s*—/u.test(x));
+        .filter((student) => clean(student?.name) && clean(student?.className))
+        .map((student) => `${clean(student.name)} — до ${clean(student.className)} класу`);
       const list = students.join("; ");
       const points = [
         `Зарахувати з ${formatDateUa(data.enrollmentDate)} до складу учнів закладу: ${list}.`,
@@ -422,15 +462,26 @@ export const ORDER_TEMPLATES = [
       return {
         ...order,
         attachments: [{
+          kind: "approved",
           title: clean(data.attachmentName),
           columns: ["№ з/п", "Педагогічний працівник", "Строк атестації"],
           rows: (data.employees || []).map((employee, index) => [String(index + 1), clean(employee.person), formatDateUa(employee.attestationDate)]),
         }, {
+          kind: "approved",
           title: "Графік засідань атестаційної комісії",
           columns: ["№ з/п", "Дата засідання", "Питання / етап роботи"],
           rows: (data.meetings || []).map((meeting, index) => [String(index + 1), formatDateUa(meeting.meetingDate), clean(meeting.agenda)]),
         }],
       };
+    },
+    validate(data, model) {
+      if (!model.orderDate) return [];
+      const dateValue = new Date(`${model.orderDate}T00:00:00`);
+      if (Number.isNaN(dateValue.getTime())) return [];
+      const deadline = new Date(dateValue.getFullYear(), 9, 20);
+      return dateValue > deadline
+        ? [{ level: "error", title: "Список і графік затверджуються після 20 жовтня", detail: "Перевірте дату наказу та вимоги чинної редакції Положення про атестацію.", fieldId: "orderDate" }]
+        : [];
     },
   }),
   template({
@@ -557,7 +608,7 @@ export const ORDER_TEMPLATES = [
       const elapsed = workingDaysBetween(data.decisionDate, model.orderDate);
       if (elapsed === null) return [];
       if (elapsed < 0) return [{ level: "error", title: "Дата наказу передує рішенню атестаційної комісії" }];
-      if (elapsed > 7) return [{ level: "error", title: "Перевищено 7-денний строк видання наказу", detail: `Між рішенням і датою наказу минуло ${elapsed} робочих днів.` }];
+      if (elapsed > 7) return [{ level: "warn", title: "Можливо перевищено 7-денний строк видання наказу", detail: `За базовим календарем понеділок–п’ятниця минуло ${elapsed} робочих днів. Звірте фактичний графік роботи закладу.`, affectsReadiness: true, fieldId: "orderDate" }];
       return [];
     },
   }),
@@ -620,12 +671,12 @@ export const ORDER_TEMPLATES = [
     notice: "Не використовуйте цей шаблон автоматично. На дату підготовки MVP рішення щодо ДПА за 2026/2027 навчальний рік може змінитися або бути відсутнім.",
     fields: [
       text("classes", "Класи / учні *", { required: true, maxlength: 360 }),
-      textarea("verifiedBasis", "Перевірена чинна підстава *", { required: true, maxlength: 1600, placeholder: "Вкажіть актуальний нормативний акт / рішення, перевірене на дату видання наказу" }),
+      textarea("documentBasis", "Підстава, що увійде до тексту наказу *", { required: true, maxlength: 1600, placeholder: "Вкажіть актуальний нормативний акт / рішення, перевірене на дату видання наказу" }),
       ...baseAdvanced(),
     ],
     build(data) {
       return finish(this.title,
-        normalizeSentence(clean(data.verifiedBasis)),
+        normalizeSentence(clean(data.documentBasis)),
         [`Звільнити від проходження державної підсумкової атестації: ${clean(data.classes)}.`, "Відповідальним працівникам забезпечити коректне відображення відповідної інформації у шкільній документації."],
         data);
     },
@@ -772,6 +823,7 @@ export const ORDER_TEMPLATES = [
       return {
         ...order,
         attachments: [{
+          kind: "approved",
           title: clean(data.documentName),
           paragraphs: String(data.documentText || "").split(/\r?\n/).map(clean).filter(Boolean),
         }],
@@ -797,7 +849,7 @@ export const ORDER_TEMPLATES = [
       return {
         title: clean(data.customTitle),
         preamble: normalizeSentence(data.preamble),
-        points: (Array.isArray(data.points) ? data.points : []).map((p) => normalizeSentence(p.text)).filter(Boolean),
+        points: (Array.isArray(data.points) ? data.points : []).map((p) => normalizeSentence(stripManualPointNumber(p.text))).filter(Boolean),
       };
     },
   }),
@@ -814,6 +866,10 @@ function withBasis(sentence, basis) {
   const base = endingDot(sentence);
   const b = endingDot(basis);
   return b ? `${base}, з урахуванням ${lowerFirst(b)}.` : `${base}.`;
+}
+
+function stripManualPointNumber(value) {
+  return clean(value).replace(/^\d{1,3}[.)]\s+/u, "");
 }
 
 function workingDaysBetween(startValue, endValue) {

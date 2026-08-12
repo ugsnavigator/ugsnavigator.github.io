@@ -88,6 +88,7 @@
 
               <div id="template-notice" class="alert alert-warning is-hidden"></div>
               <div id="profile-warning" class="alert alert-soft is-hidden"></div>
+              <div id="editor-validation-bar" class="editor-validation-bar is-hidden" role="status" aria-live="polite"></div>
 
               <div class="auto-text-note">
                 <span class="auto-icon" aria-hidden="true">✓</span>
@@ -160,7 +161,8 @@
                 <label class="field"><span>Населений пункт *</span><input name="location" type="text" maxlength="120" placeholder="Київ"></label>
                 <label class="field"><span>Код ЄДРПОУ</span><input name="edrpou" type="text" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" placeholder="8 цифр"></label>
                 <label class="field"><span>Посада підписанта *</span><input name="signerPosition" type="text" maxlength="120" placeholder="Директор"></label>
-                <label class="field"><span>ПІБ підписанта *</span><input name="signerName" type="text" maxlength="160"></label>
+                <label class="field"><span>ПІБ підписанта *</span><input name="signerName" type="text" maxlength="160" placeholder="Власне ім’я ПРІЗВИЩЕ, наприклад Ірина ІВАНОВА"></label>
+                <label class="field"><span>Розміщення місця складення</span><select name="placeLayout"><option value="inline">В одному рядку з датою і номером</option><option value="separate">Окремим рядком по центру</option></select></label>
               </div>
             </section>
 
@@ -255,6 +257,7 @@
     </div>
   </div>
 
+  <div id="print-root" class="print-root" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="js/app.bundle.js" defer></script>
 </body>
