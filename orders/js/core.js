@@ -145,7 +145,7 @@ export function validateOrder({ template, rawData, model, profile, letterheadAss
 
   const attachmentText = (model.attachments || []).flatMap((attachment) => [attachment.title, attachment.note, ...(attachment.paragraphs || []), ...(attachment.rows || []).flat()]);
   const allText = [model.title, model.preamble, ...model.points, model.grounds, model.signerName, model.institutionName, ...attachmentText].join("\n");
-  if (containsPlaceholder(allText)) push("error", "У документі залишилися службові заповнювачі", "Приберіть {{...}}, TODO, XXX або незаповнені позначки.");
+  if (containsPlaceholder(allText)) push("error", "У документі залишилися службові заповнювачі", "Приберіть позначки виду {{...}} або [ПІБ], [дата], [назва], [посада].");
   else push("ok", "Службових заповнювачів не знайдено");
 
   if (model.letterheadMode === "preprinted") push("warn", "Обрано друк на готовому паперовому бланку", `Перевірте пробним друком верхній відступ ${model.preprintedTopMm} мм.`);

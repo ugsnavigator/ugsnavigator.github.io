@@ -1074,7 +1074,7 @@ function validateOrder({ template, rawData, model, profile, letterheadAsset, all
 
   const attachmentText = (model.attachments || []).flatMap((attachment) => [attachment.title, attachment.note, ...(attachment.paragraphs || []), ...(attachment.rows || []).flat()]);
   const allText = [model.title, model.preamble, ...model.points, model.grounds, model.signerName, model.institutionName, ...attachmentText].join("\n");
-  if (containsPlaceholder(allText)) push("error", "У документі залишилися службові заповнювачі", "Приберіть {{...}}, TODO, XXX або незаповнені позначки.");
+  if (containsPlaceholder(allText)) push("error", "У документі залишилися службові заповнювачі", "Приберіть позначки виду {{...}} або [ПІБ], [дата], [назва], [посада].");
   else push("ok", "Службових заповнювачів не знайдено");
 
   if (model.letterheadMode === "preprinted") push("warn", "Обрано друк на готовому паперовому бланку", `Перевірте пробним друком верхній відступ ${model.preprintedTopMm} мм.`);
@@ -1852,7 +1852,7 @@ function stylesXml() {
 <w:style w:type="paragraph" w:styleId="OrderCommand"><w:name w:val="Order Command"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="160"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderPoint"><w:name w:val="Order Point"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="140" w:line="360" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderMeta"><w:name w:val="Order Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="center" w:pos="4819"/><w:tab w:val="right" w:pos="9638"/></w:tabs><w:spacing w:after="240"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderSignature"><w:name w:val="Order Signature"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:pos="9500"/></w:tabs><w:spacing w:before="480" w:after="0"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderSignature"><w:name w:val="Order Signature"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs><w:spacing w:before="480" w:after="0"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="AppendixTitle"><w:name w:val="Appendix Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="240"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="AppendixReference"><w:name w:val="Appendix Reference"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0"/><w:jc w:val="right"/></w:pPr><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="AppendixReferenceLast"><w:name w:val="Appendix Reference Last"/><w:basedOn w:val="AppendixReference"/><w:pPr><w:spacing w:after="240"/></w:pPr></w:style>
