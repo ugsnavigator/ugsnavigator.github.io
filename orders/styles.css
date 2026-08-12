@@ -84,9 +84,6 @@ h3 { color: var(--text); }
 .template-card h3 { margin-bottom: 6px; font-size: 17px; line-height: 1.25; }
 .template-card p { color: #4e5d6a; font-size: 13px; line-height: 1.42; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .template-card-footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-top: auto; padding-top: 9px; border-top: 1px solid var(--line-soft); }
-.template-sample { margin-top: 8px; font-size: 12px; }
-.template-sample summary { cursor: pointer; color: var(--primary); font-weight: 750; }
-.template-sample p { margin: 7px 0 0; padding: 8px; border-radius: 6px; background: #f6f8fa; color: #3f4d5a; line-height: 1.4; }
 .template-months { color: #5a6876; font-size: 11px; }
 .card-action { text-decoration: none; border: 1px solid var(--primary); border-radius: 6px; padding: 6px 9px; min-height: 34px; }
 .card-action:hover { background: var(--primary-soft); text-decoration: none; }
@@ -111,6 +108,10 @@ h3 { color: var(--text); }
 .auto-text-note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin-bottom: 18px; border-radius: 7px; background: var(--success-bg); border: 1px solid #a8cfb7; }
 .auto-text-note > div { display: grid; gap: 1px; }
 .auto-text-note span { color: #315b43; font-size: 12px; line-height: 1.4; }
+.editor-template-sample { margin: -6px 0 18px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+.editor-template-sample summary { cursor: pointer; padding: 10px 12px; color: var(--primary); font-size: 13px; font-weight: 800; }
+.editor-template-sample[open] summary { border-bottom: 1px solid var(--line-soft); }
+.editor-template-sample-text { padding: 12px; background: #f6f8fa; color: #3f4d5a; font-size: 13px; line-height: 1.55; white-space: pre-line; }
 .auto-icon { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #d8efdf; color: var(--success) !important; font-weight: 900; flex: 0 0 auto; }
 .form-section { margin-bottom: 2px; }
 .form-grid { display: grid; gap: 0 14px; }

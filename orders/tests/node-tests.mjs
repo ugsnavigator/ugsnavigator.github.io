@@ -24,6 +24,8 @@ assert.ok(indexHtml.includes('id="universal-grid"'));
 assert.ok(indexHtml.includes('id="export-profile"'));
 assert.ok(indexHtml.includes('id="print-root"'));
 assert.ok(indexHtml.includes('id="editor-validation-bar"'));
+assert.ok(indexHtml.includes('id="template-sample-panel"'));
+assert.ok(indexHtml.includes('id="template-sample-text"'));
 assert.ok(!indexHtml.includes('type="module" src="js/app.js"'));
 assert.ok(testsHtml.includes('src="js/tests.bundle.js"'));
 const appBundle = fs.readFileSync(path.join(projectRoot, "js/app.bundle.js"), "utf8");
@@ -38,6 +40,7 @@ assert.ok(appBundle.includes("school-order-constructor-orders"));
 assert.ok(appBundle.includes("school-order-constructor.working-draft.v1"));
 assert.ok(appBundle.includes("preparePrintRoot"));
 assert.ok(appBundle.includes("title: model.title"));
+assert.ok(!appBundle.includes('sample.className = "template-sample"'));
 // A module missing from the bundler list still parses, then throws ReferenceError in the browser,
 // so every symbol an entry point imports must actually be declared inside the bundle.
 function assertImportedSymbolsDeclared(entryFile, bundleSource, bundleName) {

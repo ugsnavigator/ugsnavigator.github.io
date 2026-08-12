@@ -44,6 +44,8 @@ const ui = {
   templateTitle: el("template-title"),
   templateDescription: el("template-description"),
   templateNotice: el("template-notice"),
+  templateSamplePanel: el("template-sample-panel"),
+  templateSampleText: el("template-sample-text"),
   editorBadges: el("editor-badges"),
   form: el("order-form"),
   preview: el("order-preview"),
@@ -655,10 +657,6 @@ function createTemplateCard(t, compact = false) {
   if (t.needsVerification) {
     const warn = document.createElement("div"); warn.className = "card-warning"; warn.textContent = "Перед використанням перевірте актуальну нормативну підставу."; card.appendChild(warn);
   }
-  const sample = document.createElement("details"); sample.className = "template-sample";
-  const sampleSummary = document.createElement("summary"); sampleSummary.textContent = "Зразок формулювання";
-  const sampleText = document.createElement("p"); sampleText.textContent = templateSampleText(t);
-  sample.append(sampleSummary, sampleText); card.appendChild(sample);
   card.appendChild(footer);
   return card;
 }
@@ -667,7 +665,8 @@ function templateSampleText(template) {
   const sampleData = Object.fromEntries((template.fields || []).map((field) => [field.id, sampleFieldValue(field)]));
   try {
     const built = template.build(sampleData);
-    return [built.preamble, ...(built.points || []).slice(0, 2)].filter(Boolean).join(" ");
+    const points = (built.points || []).filter(Boolean).map((point, index) => `${index + 1}. ${point}`);
+    return [built.preamble, points.length ? "НАКАЗУЮ:" : "", ...points].filter(Boolean).join("\n\n");
   } catch {
     return "Типове формулювання буде сформовано після заповнення обов’язкових полів.";
   }
@@ -723,10 +722,17 @@ function renderEditor() {
   }
   ui.templateNotice.classList.toggle("is-hidden", !noticeText && !state.template.legalReview?.sourceUrl);
   renderEditorBadges();
+  renderTemplateSample();
   renderOrderForm();
   renderEditorValidation();
   updateProfileWarning();
   if (ui.saveOrderButton) ui.saveOrderButton.textContent = state.savedOrderId ? "Зберегти зміни" : "Зберегти наказ";
+}
+
+function renderTemplateSample() {
+  if (!ui.templateSamplePanel || !ui.templateSampleText || !state.template) return;
+  ui.templateSamplePanel.open = false;
+  ui.templateSampleText.textContent = templateSampleText(state.template);
 }
 
 function renderEditorBadges() {
