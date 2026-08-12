@@ -191,9 +191,13 @@ function bindSavedOrderActions() {
       if (parsed?.kind !== "school-order-constructor-orders" || parsed?.version !== 1 || !Array.isArray(parsed?.orders)) {
         throw new Error("Файл не є підтримуваною резервною копією наказів версії 1.");
       }
-      const count = await importOrderRecords(parsed.orders);
+      const { count, evicted } = await importOrderRecords(parsed.orders);
       await refreshSavedOrders();
-      toast(count ? `Імпортовано нових або новіших записів: ${count}.` : "Новіших записів для імпорту немає.");
+      const importMessage = count ? `Імпортовано нових або новіших записів: ${count}.` : "Новіших записів для імпорту немає.";
+      const evictionWarning = evicted
+        ? ` Резервне сховище переповнилося: вилучено ${evicted} найстаріших записів. Рекомендуємо експортувати резервну копію.`
+        : "";
+      toast(`${importMessage}${evictionWarning}`, evicted ? 6000 : 2600);
     } catch (error) {
       console.error(error);
       toast("Не вдалося імпортувати збережені накази.");
@@ -246,11 +250,15 @@ async function saveCurrentOrder() {
     state.editorDirty = false;
     await refreshSavedOrders(false);
     renderEditor();
-    toast(saved.status === "ready"
+    const saveMessage = saved.status === "ready"
       ? "Наказ збережено."
       : validation.hasErrors
         ? "Збережено як чернетку: є незаповнені або некоректні обов’язкові дані."
-        : "Збережено як чернетку: залишилися попередження для перевірки.");
+        : "Збережено як чернетку: залишилися попередження для перевірки.";
+    const evictionWarning = saved.fallbackEvicted
+      ? ` Резервне сховище переповнилося: вилучено ${saved.fallbackEvicted} найстаріших записів. Рекомендуємо експортувати резервну копію.`
+      : "";
+    toast(`${saveMessage}${evictionWarning}`, saved.fallbackEvicted ? 6000 : 2600);
   } catch (error) {
     console.error(error);
     toast("Не вдалося зберегти наказ у цьому браузері.");
@@ -1181,11 +1189,11 @@ function nounCheck(n) {
 }
 
 let toastTimer;
-function toast(message) {
+function toast(message, duration = 2600) {
   ui.toast.textContent = message;
   ui.toast.classList.add("is-visible");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => ui.toast.classList.remove("is-visible"), 2600);
+  toastTimer = setTimeout(() => ui.toast.classList.remove("is-visible"), duration);
 }
 
 function createLocalId() {

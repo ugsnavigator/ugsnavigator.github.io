@@ -7,7 +7,7 @@ import { ORDER_TEMPLATES, ACADEMIC_MONTHS } from "../js/templates.js";
 import { xmlEscape, sanitizeFilename, validateTemplateSchemas, buildOrderModel, validateOrder } from "../js/core.js";
 import { buildDocxFiles, buildDocxBytes, crc32, verifyGeneratedDocx } from "../js/docx.js";
 import { detectImageMime } from "../js/image.js";
-import { sanitizeOrderRecord, saveProfile, clearProfile, saveOrderRecord } from "../js/storage.js";
+import { sanitizeOrderRecord, saveProfile, clearProfile, saveOrderRecord, importOrderRecords, isQuotaExceeded } from "../js/storage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, "output");
@@ -166,6 +166,52 @@ assert.equal((appendixXml.match(/<w:type w:val="nextPage"\/>/g) || []).length, 2
 fs.writeFileSync(path.join(outDir, "qa-appendices.docx"), buildDocxBytes(appendixModel));
 
 const originalLocalStorage = globalThis.localStorage;
+const originalIndexedDB = globalThis.indexedDB;
+delete globalThis.indexedDB;
+
+assert.equal(isQuotaExceeded({ name: "QuotaExceededError" }), true);
+assert.equal(isQuotaExceeded({ name: "NS_ERROR_DOM_QUOTA_REACHED" }), true);
+assert.equal(isQuotaExceeded({ code: 22 }), true);
+assert.equal(isQuotaExceeded(new Error("quota")), false);
+
+const fallbackKey = "school-order-constructor.saved-orders.v1";
+const quotaRecords = Array.from({ length: 5 }, (_, index) => ({
+  id: `quota-${index + 1}`,
+  templateId: "test",
+  title: `Про тест ${index + 1}`,
+  category: "test",
+  orderDate: "2026-08-12",
+  orderNumber: String(index + 1),
+  status: "draft",
+  createdAt: `2026-08-12T10:0${index}:00.000Z`,
+  updatedAt: `2026-08-12T10:0${index}:00.000Z`,
+  formData: { text: "x".repeat(180) },
+}));
+const fallbackCapacity = JSON.stringify(quotaRecords.slice(1, 4).map(sanitizeOrderRecord)).length;
+const quotaStorageValues = new Map();
+globalThis.localStorage = {
+  getItem(key) { return quotaStorageValues.get(String(key)) ?? null; },
+  setItem(key, value) {
+    const serialized = String(value);
+    if (String(key) === fallbackKey && serialized.length > fallbackCapacity) {
+      const error = new Error("quota reached");
+      error.name = "QuotaExceededError";
+      throw error;
+    }
+    quotaStorageValues.set(String(key), serialized);
+  },
+  removeItem(key) { quotaStorageValues.delete(String(key)); },
+};
+
+let quotaSaveResult;
+for (const record of quotaRecords.slice(0, 4)) quotaSaveResult = await saveOrderRecord(record);
+assert.equal(quotaSaveResult.fallbackEvicted, 1);
+assert.deepEqual(JSON.parse(quotaStorageValues.get(fallbackKey)).map((record) => record.id), ["quota-4", "quota-3", "quota-2"]);
+
+const importResult = await importOrderRecords(quotaRecords.slice(4));
+assert.deepEqual(importResult, { count: 1, evicted: 1 });
+assert.deepEqual(JSON.parse(quotaStorageValues.get(fallbackKey)).map((record) => record.id), ["quota-5", "quota-4", "quota-3"]);
+
 globalThis.localStorage = {
   getItem() { return null; },
   setItem() { throw new Error("quota"); },
@@ -176,5 +222,7 @@ assert.throws(() => clearProfile(), /Не вдалося видалити про
 await assert.rejects(() => saveOrderRecord({ id: "storage-test", templateId: "test", title: "Про тест" }), /Не вдалося зберегти наказ/);
 if (originalLocalStorage === undefined) delete globalThis.localStorage;
 else globalThis.localStorage = originalLocalStorage;
+if (originalIndexedDB === undefined) delete globalThis.indexedDB;
+else globalThis.indexedDB = originalIndexedDB;
 
 console.log(`OK: ${ORDER_TEMPLATES.length} templates; standard + image-letterhead DOCX samples written to ${outDir}`);

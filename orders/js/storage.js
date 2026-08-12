@@ -121,11 +121,11 @@ export async function saveOrderRecord(record) {
     const current = loadFallbackOrders().filter((item) => item.id !== safe.id);
     current.unshift(safe);
     try {
-      saveFallbackOrders(current.slice(0, MAX_SAVED_ORDERS));
+      const fallback = saveFallbackOrders(current);
+      return fallback.evicted ? { ...safe, fallbackEvicted: fallback.evicted } : safe;
     } catch (fallbackError) {
       throw storageError("Не вдалося зберегти наказ ані в IndexedDB, ані в резервному сховищі", fallbackError, indexedDbError);
     }
-    return safe;
   }
 }
 
@@ -208,7 +208,8 @@ export async function importOrderRecords(records) {
     const current = existing.get(record.id);
     return !current || String(record.updatedAt) > String(current.updatedAt);
   });
-  if (!accepted.length) return 0;
+  if (!accepted.length) return { count: 0, evicted: 0 };
+  let evicted = 0;
   try {
     const db = await openDb();
     await new Promise((resolve, reject) => {
@@ -224,9 +225,9 @@ export async function importOrderRecords(records) {
   } catch {
     const merged = new Map(loadFallbackOrders().map((item) => [item.id, item]));
     accepted.forEach((item) => merged.set(item.id, item));
-    saveFallbackOrders([...merged.values()].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, MAX_SAVED_ORDERS));
+    evicted = saveFallbackOrders([...merged.values()]).evicted;
   }
-  return accepted.length;
+  return { count: accepted.length, evicted };
 }
 
 export async function clearAllLocalData() {
@@ -267,15 +268,72 @@ function loadFallbackOrders() {
 }
 
 function saveFallbackOrders(records) {
-  const serialized = JSON.stringify(records.slice(0, MAX_SAVED_ORDERS));
+  const merged = new Map();
+  records.forEach((record) => {
+    if (!record?.id) return;
+    const existing = merged.get(record.id);
+    if (!existing || String(record.updatedAt) > String(existing.updatedAt)) merged.set(record.id, record);
+  });
+  const evictedByLimit = Math.max(0, merged.size - MAX_SAVED_ORDERS);
+  const ordered = [...merged.values()]
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+    .slice(0, MAX_SAVED_ORDERS);
+
   try {
-    localStorage.setItem(ORDER_FALLBACK_KEY, serialized);
-    if (localStorage.getItem(ORDER_FALLBACK_KEY) !== serialized) {
-      throw new Error("Браузер не підтвердив запис резервної копії наказів");
-    }
+    writeFallbackOrders(ordered);
+    return { saved: ordered.length, evicted: evictedByLimit };
   } catch (error) {
-    throw storageError("Резервне локальне сховище недоступне або переповнене", error);
+    if (!isQuotaExceeded(error)) throw storageError("Резервне локальне сховище недоступне", error);
+
+    let low = 1;
+    let high = ordered.length - 1;
+    let best = 0;
+    let bestSerialized = "";
+
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2);
+      try {
+        bestSerialized = writeFallbackOrders(ordered.slice(0, middle));
+        best = middle;
+        low = middle + 1;
+      } catch (candidateError) {
+        if (!isQuotaExceeded(candidateError)) throw storageError("Резервне локальне сховище недоступне", candidateError);
+        high = middle - 1;
+      }
+    }
+
+    if (!best) {
+      throw storageError("У резервному сховищі недостатньо місця навіть для одного наказу. Експортуйте поточний наказ або звільніть місце в браузері", error);
+    }
+
+    try {
+      if (localStorage.getItem(ORDER_FALLBACK_KEY) !== bestSerialized) {
+        throw new Error("Резервне сховище було змінено в іншій вкладці");
+      }
+    } catch (verificationError) {
+      throw storageError("Не вдалося підтвердити запис резервної копії наказів", verificationError);
+    }
+
+    return { saved: best, evicted: evictedByLimit + ordered.length - best };
   }
+}
+
+function writeFallbackOrders(records) {
+  const serialized = JSON.stringify(records);
+  localStorage.setItem(ORDER_FALLBACK_KEY, serialized);
+  if (localStorage.getItem(ORDER_FALLBACK_KEY) !== serialized) {
+    throw new Error("Браузер не підтвердив запис резервної копії наказів");
+  }
+  return serialized;
+}
+
+export function isQuotaExceeded(error) {
+  return Boolean(error) && (
+    error.name === "QuotaExceededError" ||
+    error.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    error.code === 22 ||
+    error.code === 1014
+  );
 }
 
 function storageError(message, ...causes) {
