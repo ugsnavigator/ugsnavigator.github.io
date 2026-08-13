@@ -63,7 +63,7 @@ h3 { color: var(--text); }
 .inline-action { white-space: nowrap; }
 .danger-text { color: var(--danger); }
 
-.catalog-filterbar { display: grid; grid-template-columns: minmax(0, 1fr) 230px; align-items: stretch; gap: 8px; margin-bottom: 14px; }
+.catalog-filterbar { display: grid; grid-template-columns: minmax(0, 1fr) 230px auto; align-items: stretch; gap: 8px; margin-bottom: 14px; }
 .month-nav { min-width: 0; display: grid; grid-template-columns: repeat(12, minmax(50px, 1fr)); gap: 2px; padding: 3px; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
 .month-button { min-width: 50px; min-height: 44px; border: 1px solid transparent; background: transparent; border-radius: 5px; padding: 5px 4px; cursor: pointer; display: grid; place-items: center; color: #3e4b58; }
 .month-button:hover { background: #edf1f4; }
@@ -92,6 +92,8 @@ h3 { color: var(--text); }
 .empty-state strong { color: var(--text); }
 
 .universal-section { margin-top: 24px; padding-top: 18px; border-top: 2px solid #c7cdd4; }
+.free-order-section { padding: 18px; border: 1px solid #b8c5d1; border-left: 4px solid var(--primary); border-radius: 8px; background: #f7fafc; }
+.free-order-section .section-title-row { margin-bottom: 0; align-items: center; }
 .section-title-row { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 10px; }
 .section-title-row h3 { margin: 0 0 2px; font-size: 19px; }
 .section-title-row p { margin: 0; color: var(--muted); font-size: 13px; }
@@ -132,6 +134,14 @@ h3 { color: var(--text); }
 .remove-row { position: absolute; top: 9px; right: 9px; border: 0; background: transparent; color: var(--danger); font-size: 11px; cursor: pointer; }
 .remove-row:disabled { opacity: .35; cursor: default; }
 .repeatable-item-grid { display: grid; grid-template-columns: 1fr 1.35fr; gap: 10px; padding-right: 58px; }
+.is-simple-repeatable .repeatable-item-grid { grid-template-columns: minmax(150px, .8fr) minmax(240px, 1.5fr) minmax(150px, .7fr); }
+.repeatable-item-advanced { margin: 0 58px 10px 0; padding-top: 2px; }
+.repeatable-item-advanced summary { cursor: pointer; color: var(--primary); font-size: 12px; font-weight: 700; }
+.repeatable-item-advanced .repeatable-item-grid { margin-top: 9px; padding-right: 0; grid-template-columns: minmax(0, 1fr); }
+.prepared-order { margin: 3px 0 15px; border: 1px solid #cbd5de; border-radius: 8px; background: #f8fafb; }
+.prepared-order summary { cursor: pointer; padding: 12px; color: #344b60; font-weight: 800; font-size: 13px; }
+.prepared-order[open] summary { border-bottom: 1px solid var(--line-soft); }
+.prepared-order-body { padding: 14px 12px 0; }
 .advanced-order { margin: 8px 0 0; border-top: 1px solid var(--line); padding-top: 13px; }
 .advanced-order summary { cursor: pointer; color: var(--primary); font-weight: 800; font-size: 13px; }
 .advanced-order-body { padding-top: 14px; }
@@ -158,6 +168,14 @@ h3 { color: var(--text); }
 .saved-page, .profile-page { max-width: 1120px; margin: 0 auto; }
 .saved-search { width: min(340px, 100%); }
 .local-data-note { margin-bottom: 12px; padding: 9px 11px; border: 1px solid #c3cbd3; border-radius: 7px; background: #fff; color: #3f4c59; font-size: 13px; }
+.package-tools { margin-bottom: 14px; }
+.package-inputs { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+.package-inputs label { display: grid; gap: 5px; min-width: 190px; font-size: 13px; font-weight: 700; }
+.package-validation-results { display: grid; gap: 6px; margin-top: 10px; }
+.package-result { padding: 8px 10px; border-left: 4px solid #7b8794; background: #f5f7f9; font-size: 13px; }
+.package-result.error { border-color: #b42318; background: #fff1f0; }
+.package-result.warn { border-color: #b7791f; background: #fff8e6; }
+.package-result.ok { border-color: #247a4b; background: #edf9f2; }
 .saved-orders-list { display: grid; gap: 8px; }
 .saved-order-row { display: grid; grid-template-columns: 112px minmax(250px, 1fr) 110px auto; gap: 14px; align-items: center; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
 .saved-order-date { font-size: 13px; color: #33414e; }
@@ -243,10 +261,15 @@ h3 { color: var(--text); }
 .a4-page .order-word { text-align: center; font-weight: 700; letter-spacing: .04em; margin-bottom: 4mm; }
 .a4-page .date-number { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 5mm; }
 .a4-page .order-place { text-align: center; margin: -3mm 0 5mm; }
-.a4-page .order-title { text-align: center; font-weight: 700; margin: 0 auto 6mm; max-width: 145mm; }
+.a4-page .order-title { text-align: left; font-weight: 700; margin: 0 0 6mm; max-width: 145mm; }
 .a4-page .preamble { text-align: justify; text-indent: 10mm; margin-bottom: 4mm; }
 .a4-page .order-command { font-weight: 700; margin: 0 0 4mm; }
 .a4-page .order-point { text-align: justify; padding-left: 10mm; text-indent: -10mm; margin-bottom: 3mm; }
+.a4-page .order-point.level-1 { padding-left: 20mm; }
+.a4-page .order-point.level-2 { padding-left: 30mm; }
+.a4-page .order-deadline { text-align: right; margin: -2mm 0 3mm; }
+.a4-page .body-table-title { font-weight: 700; margin: 3mm 0 2mm; }
+.a4-page .body-table { margin: 2mm 0 4mm; }
 .a4-page .signature { display: flex; justify-content: space-between; gap: 15mm; margin-top: 14mm; }
 .a4-page .signature span:last-child { text-align: right; white-space: nowrap; }
 .a4-page .grounds { margin: 5mm 0 0; }
@@ -269,7 +292,7 @@ h3 { color: var(--text); }
 
 @media (max-width: 1220px) {
   .template-grid, .universal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .catalog-filterbar { grid-template-columns: 1fr 210px; }
+  .catalog-filterbar { grid-template-columns: minmax(0, 1fr) 210px auto; }
   .month-nav { grid-template-columns: repeat(12, 58px); }
 }
 
@@ -301,8 +324,10 @@ h3 { color: var(--text); }
   .badge-row { justify-content: flex-start; }
   .editor-card { padding: 16px 12px; }
   .two-col, .radio-cards, .repeatable-item-grid, .staff-row { grid-template-columns: 1fr; }
+  .is-simple-repeatable .repeatable-item-grid { grid-template-columns: 1fr; }
   .repeatable-item { padding-left: 11px; padding-top: 42px; }
   .repeatable-item-grid { padding-right: 0; }
+  .repeatable-item-advanced { margin-right: 0; }
   .item-number { top: 10px; }
   .editor-actions .btn { flex: 1 1 180px; }
   .saved-order-row { grid-template-columns: 1fr; gap: 7px; }

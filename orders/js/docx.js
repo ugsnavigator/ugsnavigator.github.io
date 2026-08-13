@@ -1,4 +1,4 @@
-import { xmlEscape, mmToTwip, mmToEmu, sanitizeFilename, containsPlaceholder } from "./core.js";
+import { xmlEscape, mmToTwip, mmToEmu, sanitizeFilename, containsPlaceholder, flattenDirectives, directiveText, directiveDeadlineText } from "./core.js";
 import { formatDateUa } from "./templates.js";
 
 const encoder = new TextEncoder();
@@ -27,7 +27,8 @@ export function verifyGeneratedDocx(model, letterheadAsset = null) {
   const modelText = [model.title, model.preamble, ...(model.points || []), model.grounds, ...((model.attachments || []).flatMap((attachment) => [attachment.title, attachment.note, ...(attachment.paragraphs || []), ...(attachment.rows || []).flat()]))].join("\n");
   if (containsPlaceholder(modelText)) errors.push("У моделі документа залишилися службові заповнювачі.");
   const numberedPointParagraphs = documentText.match(/<w:p><w:pPr>(?:(?!<\/w:pPr>)[\s\S])*?<w:pStyle w:val="OrderPoint"\/>[\s\S]*?<w:numPr>[\s\S]*?<\/w:numPr>[\s\S]*?<\/w:pPr>[\s\S]*?<\/w:p>/g) || [];
-  if ((model.points || []).length !== numberedPointParagraphs.length) errors.push("Пункти наказу не оформлено штатною нумерацією Word.");
+  const expectedPoints = model.directives ? flattenDirectives(model.directives).length : (model.points || []).length;
+  if (expectedPoints !== numberedPointParagraphs.length) errors.push("Пункти наказу не оформлено штатною нумерацією Word.");
 
   const numberingText = new TextDecoder().decode(files.get("word/numbering.xml") || new Uint8Array());
   if (!numberingText.includes("<w:abstractNum") || !numberingText.includes('w:numFmt w:val="decimal"')) errors.push("Некоректна схема нумерації Word.");
@@ -161,7 +162,7 @@ function corePropsXml(model) {
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <dc:title>${xmlEscape(model.title)}</dc:title>
 <dc:subject>Наказ закладу освіти</dc:subject>
-<dc:creator>${xmlEscape(model.institutionName || "Конструктор наказів")}</dc:creator>
+<dc:creator>Локальний конструктор наказів</dc:creator>
 <cp:lastModifiedBy>Локальний конструктор наказів</cp:lastModifiedBy>
 <dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
 <dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified>
@@ -187,11 +188,12 @@ function stylesXml() {
 <w:style w:type="paragraph" w:styleId="OrderInstitutionCode"><w:name w:val="Order Institution Code"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="200"/><w:jc w:val="center"/></w:pPr><w:rPr><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderLetterhead"><w:name w:val="Order Letterhead"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="180"/><w:jc w:val="center"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderWord"><w:name w:val="Order Word"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="180"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="OrderTitle"><w:name w:val="Order Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="300"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderTitle"><w:name w:val="Order Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="300"/><w:ind w:right="1417"/><w:jc w:val="left"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderBody"><w:name w:val="Order Body"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="180" w:line="360" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderPreamble"><w:name w:val="Order Preamble"/><w:basedOn w:val="OrderBody"/><w:pPr><w:ind w:firstLine="567"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderCommand"><w:name w:val="Order Command"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="160"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderPoint"><w:name w:val="Order Point"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="140" w:line="360" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="OrderDeadline"><w:name w:val="Order Deadline"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="140"/><w:jc w:val="right"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderMeta"><w:name w:val="Order Meta"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="center" w:pos="4819"/><w:tab w:val="right" w:pos="9638"/></w:tabs><w:spacing w:after="240"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="OrderSignature"><w:name w:val="Order Signature"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs><w:spacing w:before="480" w:after="0"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="AppendixTitle"><w:name w:val="Appendix Title"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="240"/><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>
@@ -203,9 +205,14 @@ function stylesXml() {
 }
 
 function numberingXml() {
+  const levels = [0, 1, 2].map((level) => {
+    const left = 567 + level * 567;
+    const text = Array.from({ length: level + 1 }, (_, index) => `%${index + 1}`).join(".") + ".";
+    return `<w:lvl w:ilvl="${level}"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/><w:pPr><w:tabs><w:tab w:val="num" w:pos="${left}"/></w:tabs><w:ind w:left="${left}" w:hanging="567"/></w:pPr></w:lvl>`;
+  }).join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="left"/><w:pPr><w:tabs><w:tab w:val="num" w:pos="567"/></w:tabs><w:ind w:left="567" w:hanging="567"/></w:pPr></w:lvl></w:abstractNum>
+<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="multilevel"/>${levels}</w:abstractNum>
 <w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>
 </w:numbering>`;
 }
@@ -239,9 +246,22 @@ function documentXml(model, imageInfo) {
   body.push(paragraphXml("НАКАЗ", { style: "OrderWord" }));
   body.push(dateNumberPlaceXml(model));
   body.push(paragraphXml(model.title || "Про …", { style: "OrderTitle" }));
-  body.push(paragraphXml(model.preamble || "[Преамбула]", { style: "OrderPreamble" }));
+  const preambleParagraphs = model.preambleParagraphs?.length ? model.preambleParagraphs : [model.preamble || "[Преамбула]"];
+  preambleParagraphs.forEach((paragraph) => body.push(paragraphXml(paragraph, { style: "OrderPreamble" })));
   body.push(paragraphXml("НАКАЗУЮ:", { style: "OrderCommand" }));
-  model.points.forEach((point) => body.push(numberedParagraphXml(point)));
+  const flatDirectives = model.directives?.length
+    ? flattenDirectives(model.directives)
+    : (model.points || []).map((text) => ({ executor: "", text, deadline: null, level: 0 }));
+  appendBodyTables(body, model.bodyTables, 0);
+  flatDirectives.forEach((directive, index) => {
+    body.push(numberedParagraphXml(directive, directive.level));
+    if (directive.deadline?.value) body.push(deadlineParagraphXml(directiveDeadlineText(directive.deadline)));
+    appendBodyTables(body, model.bodyTables, index + 1);
+  });
+  (model.bodyTables || []).filter((table) => Number(table.afterDirective || 0) > flatDirectives.length).forEach((table) => {
+    if (table.title) body.push(paragraphXml(table.title, { style: "OrderBody", bold: true }));
+    body.push(tableXml(table.columns, table.rows));
+  });
   if (model.grounds) body.push(paragraphXml(`Підстава: ${model.grounds}`, { style: "OrderBody" }));
   body.push(signatureXml(model));
   if ((model.acknowledgements || []).length) body.push(acknowledgementsXml(model.acknowledgements));
@@ -300,8 +320,20 @@ ${paragraphXml(place, { align: "center", after: 240 })}`;
 <w:r><w:t>${xmlEscape(date)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(place)}</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>${xmlEscape(number)}</w:t></w:r></w:p>`;
 }
 
-function numberedParagraphXml(text) {
-  return `<w:p><w:pPr><w:pStyle w:val="OrderPoint"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
+function numberedParagraphXml(directive, level = 0) {
+  const text = typeof directive === "string" ? directive : directiveText(directive);
+  return `<w:p><w:pPr><w:pStyle w:val="OrderPoint"/><w:numPr><w:ilvl w:val="${Math.min(2, Math.max(0, Number(level) || 0))}"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:p>`;
+}
+
+function deadlineParagraphXml(value) {
+  return paragraphXml(value, { style: "OrderDeadline", align: "right" });
+}
+
+function appendBodyTables(body, tables, afterDirective) {
+  (tables || []).filter((table) => Number(table.afterDirective || 0) === afterDirective).forEach((table) => {
+    if (table.title) body.push(paragraphXml(table.title, { style: "OrderBody", bold: true }));
+    body.push(tableXml(table.columns, table.rows));
+  });
 }
 
 function signatureXml(model) {

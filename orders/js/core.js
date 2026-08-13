@@ -1,4 +1,5 @@
-import { clean } from "./templates.js";
+import { clean, formatDateUa, upperFirst } from "./templates.js";
+import { getLegalBasis, getLegalBasisAudit } from "./legal-basis.js";
 
 export const DEFAULT_PROFILE = Object.freeze({
   institutionName: "",
@@ -44,13 +45,20 @@ export function mmToEmu(mm) {
 
 export function buildOrderModel(template, formData, profile, orderMeta) {
   const built = template.build(formData);
+  const preambleParagraphs = sanitizeParagraphs(built.preambleParagraphs || splitParagraphs(built.preamble));
+  const directives = sanitizeDirectives(built.directives || built.points || []);
   return {
     templateId: template.id,
     category: template.category,
     recordSeries: clean(orderMeta.recordSeries || template.recordSeries || "Основна діяльність"),
     title: clean(built.title),
-    preamble: clean(built.preamble),
-    points: (built.points || []).map(clean).filter(Boolean),
+    preamble: preambleParagraphs.join("\n"),
+    preambleParagraphs,
+    directives,
+    // Залишено для сумісності зі сховищем, старими тестами та інтеграціями.
+    points: flattenDirectives(directives).map(directiveText).filter(Boolean),
+    bodyTables: sanitizeTables(built.bodyTables),
+    legalBasisIds: Array.isArray(built.legalBasisIds) ? [...new Set(built.legalBasisIds.map(clean).filter(Boolean))].slice(0, 50) : [],
     attachments: sanitizeAttachments(built.attachments),
     reviewedLegalBasis: clean(formData?.verifiedBasis),
     grounds: clean(formData?.grounds),
@@ -68,6 +76,76 @@ export function buildOrderModel(template, formData, profile, orderMeta) {
     preprintedTopMm: clampNumber(profile.preprintedTopMm, 25, 100, 55),
     letterheadWidthMm: clampNumber(profile.letterheadWidthMm, 80, 180, 170),
   };
+}
+
+function splitParagraphs(value) {
+  return String(value ?? "").split(/\r?\n+/u);
+}
+
+function sanitizeParagraphs(paragraphs) {
+  return (Array.isArray(paragraphs) ? paragraphs : [])
+    .map(clean)
+    .filter(Boolean)
+    .slice(0, 100);
+}
+
+export function sanitizeDirectives(items, depth = 0) {
+  if (!Array.isArray(items) || depth > 8) return [];
+  return items.slice(0, 500).map((item) => {
+    if (typeof item === "string") return { executor: "", text: clean(item), deadline: null, children: [] };
+    // Виконавець відкриває пункт, тому завжди подається з великої літери,
+    // незалежно від того, як його ввів автор шаблону або користувач.
+    const executor = upperFirst(clean(item?.executor).replace(/:+$/u, ""));
+    const text = clean(item?.text);
+    const deadline = sanitizeDeadline(item?.deadline);
+    const children = sanitizeDirectives(item?.children, depth + 1);
+    return { executor, text, deadline, children };
+  }).filter((item) => item.executor || item.text || item.children.length);
+}
+
+function sanitizeDeadline(deadline) {
+  if (!deadline) return null;
+  if (typeof deadline === "string") {
+    const value = clean(deadline);
+    return value ? { kind: "free", value } : null;
+  }
+  const value = clean(deadline.value);
+  if (!value) return null;
+  const allowed = new Set(["date", "preset", "free"]);
+  return { kind: allowed.has(deadline.kind) ? deadline.kind : "free", value };
+}
+
+export function directiveDeadlineText(deadline) {
+  if (!deadline?.value) return "";
+  return deadline.kind === "date" ? `До ${formatDateUa(deadline.value)}` : clean(deadline.value);
+}
+
+export function flattenDirectives(items, level = 0, out = []) {
+  (items || []).forEach((item) => {
+    out.push({ ...item, level });
+    flattenDirectives(item.children, level + 1, out);
+  });
+  return out;
+}
+
+export function directiveText(item) {
+  const executor = clean(item?.executor);
+  const text = clean(item?.text);
+  if (executor && text) return `${executor}: ${text}`;
+  if (executor) return `${executor}:`;
+  return text;
+}
+
+function sanitizeTables(tables) {
+  if (!Array.isArray(tables)) return [];
+  return tables.slice(0, 30).map((table) => ({
+    title: clean(table?.title),
+    columns: Array.isArray(table?.columns) ? table.columns.map(clean).filter(Boolean).slice(0, 12) : [],
+    rows: Array.isArray(table?.rows)
+      ? table.rows.slice(0, 500).map((row) => Array.isArray(row) ? row.slice(0, 12).map(clean) : [])
+      : [],
+    afterDirective: Math.max(0, Number.parseInt(table?.afterDirective, 10) || 0),
+  })).filter((table) => table.columns.length && table.rows.length);
 }
 
 function sanitizeAttachments(attachments) {
@@ -99,7 +177,9 @@ export function clampNumber(value, min, max, fallback) {
 }
 
 export function containsPlaceholder(text) {
-  return /\{\{[^}]*\}\}|\[\s*(?:встав(?:те)?|ПІБ|дата|номер|назва|посада)(?:[^\]]*)\]/iu.test(String(text ?? ""));
+  const value = String(text ?? "");
+  return /\{\{[^}]*\}\}|\[\s*(?:встав(?:те)?|ПІБ|дата|номер|назва|посада)(?:[^\]]*)\]/iu.test(value)
+    || /«\s*»|_{3,}|(?:протокол|наказ|рішення)\s+(?:від\s*)?(?:№\s*)?(?=$|[.,;])/imu.test(value);
 }
 
 export function isOrderReady(validation) {
@@ -144,9 +224,21 @@ export function validateOrder({ template, rawData, model, profile, letterheadAss
   else push("ok", `Сформовано пунктів: ${model.points.length}`);
 
   const attachmentText = (model.attachments || []).flatMap((attachment) => [attachment.title, attachment.note, ...(attachment.paragraphs || []), ...(attachment.rows || []).flat()]);
-  const allText = [model.title, model.preamble, ...model.points, model.grounds, model.signerName, model.institutionName, ...attachmentText].join("\n");
-  if (containsPlaceholder(allText)) push("error", "У документі залишилися службові заповнювачі", "Приберіть позначки виду {{...}} або [ПІБ], [дата], [назва], [посада].");
+  const bodyTableText = (model.bodyTables || []).flatMap((table) => [table.title, ...(table.columns || []), ...(table.rows || []).flat()]);
+  const allText = [model.title, model.preamble, ...model.points, model.grounds, model.signerName, model.institutionName, ...bodyTableText, ...attachmentText].join("\n");
+  if (containsPlaceholder(allText)) push("error", "У документі залишилися службові заповнювачі", "Приберіть позначки виду {{...}}, [ПІБ], порожні лапки, підкреслення та незаповнені реквізити «від / №».");
   else push("ok", "Службових заповнювачів не знайдено");
+
+  const unclearLegalBasis = (model.legalBasisIds || [])
+    .map((id) => ({ act: getLegalBasis(id), audit: getLegalBasisAudit(id) }))
+    .filter(({ audit }) => !audit || audit.status !== "active");
+  if (unclearLegalBasis.length) {
+    push(
+      "warn",
+      "Чинність частини нормативних підстав потребує ручної перевірки",
+      unclearLegalBasis.map(({ act, audit }) => `${act?.title || audit?.id || "Невідомий акт"}: ${audit?.evidence || "немає запису аудиту"}`).join(" "),
+    );
+  }
 
   if (model.letterheadMode === "preprinted") push("warn", "Обрано друк на готовому паперовому бланку", `Перевірте пробним друком верхній відступ ${model.preprintedTopMm} мм.`);
   if (model.letterheadMode === "standard") push("warn", "Текстова шапка не є затвердженим бланком закладу", "Для фінального документа використайте затверджений паперовий або графічний бланк відповідно до локальної інструкції з діловодства.");
@@ -157,6 +249,8 @@ export function validateOrder({ template, rawData, model, profile, letterheadAss
 
   if (model.preamble.length < 15) push("warn", "Преамбула дуже коротка", "Перевірте, чи достатньо описано мету або підставу.");
   if (model.points.some((p) => p.length < 4)) push("warn", "Є надто короткий пункт наказу");
+
+  lintOrderModel(model).forEach((result) => push(result.level, result.title, result.detail || "", result));
 
   if (typeof template.validate === "function") {
     const customResults = template.validate(rawData, model);
@@ -169,6 +263,82 @@ export function validateOrder({ template, rawData, model, profile, letterheadAss
 
   const hasErrors = results.some((r) => r.level === "error");
   return { results, hasErrors };
+}
+
+export function lintOrderModel(model) {
+  const results = [];
+  const push = (level, title, detail = "", meta = {}) => results.push({ level, title, detail, ...meta });
+  // Биті роки й дати трапляються не лише в тексті пунктів: план заходів, графік
+  // або список у таблиці чи додатку так само стають частиною підписаного наказу.
+  const tableText = (tables) => (tables || []).flatMap((table) => [table.title, ...(table.columns || []), ...(table.rows || []).flat()]);
+  const bodyText = [
+    ...(model.preambleParagraphs || [model.preamble]),
+    ...(model.points || []),
+    ...tableText(model.bodyTables),
+    ...(model.attachments || []).flatMap((attachment) => [attachment.title, attachment.note, ...(attachment.paragraphs || []), ...tableText([attachment])]),
+  ].filter(Boolean);
+  const content = [model.title, ...bodyText].filter(Boolean).join("\n");
+
+  const malformedDates = [...content.matchAll(/\b(?:0?[1-9]|[12]\d|3[01])[./-](?:0?[1-9]|1[0-2])[./-](\d{2,3}|\d{5,})\b/gu)];
+  if (malformedDates.length) push("error", "Знайдено дату з неповним або зайвим роком", malformedDates.map((match) => match[0]).join(", "));
+
+  const malformedSchoolYears = [...content.matchAll(/\b(\d{3,4})\s*\/\s*(\d{3,4})(?=\s*(?:н\.?\s*р\.?|навчальн))/giu)];
+  malformedSchoolYears.forEach((match) => {
+    const from = Number(match[1]);
+    const to = Number(match[2]);
+    if (match[1].length !== 4 || match[2].length !== 4 || to !== from + 1) {
+      push("error", "Некоректно зазначено навчальний рік", `Знайдено «${match[0].trim()}»; очікується формат на кшталт 2026/2027.`);
+    }
+  });
+
+  const titleYears = schoolYears(model.title);
+  const bodyYears = schoolYears(bodyText.join(" "));
+  if (titleYears.length && bodyYears.length && titleYears.some((year) => !bodyYears.includes(year))) {
+    push("error", "Навчальний рік у заголовку не збігається з текстом", `Заголовок: ${titleYears.join(", ")}; текст: ${bodyYears.join(", ")}.`);
+  }
+
+  const orderTime = parseIsoDate(model.orderDate);
+  flattenDirectives(model.directives || []).forEach((directive) => {
+    if (directive.deadline?.kind !== "date") return;
+    const deadlineTime = parseIsoDate(directive.deadline.value);
+    if (orderTime !== null && deadlineTime !== null && deadlineTime < orderTime) {
+      push("error", "Строк виконання передує даті наказу", `${directiveText(directive)} — ${directive.deadline.value}.`);
+    }
+  });
+
+  const countEmptyCells = (tables) => (tables || []).reduce((count, table) => {
+    const columnCount = (table.columns || []).length;
+    return count + (table.rows || []).reduce((rowCount, row) => {
+      const cells = Array.isArray(row) ? row : [];
+      // DOCX формує по одній комірці на кожну колонку навіть тоді, коли
+      // у вихідному рядку бракує хвостових значень. Такі комірки теж порожні.
+      const renderedCells = columnCount ? cells.slice(0, columnCount) : cells;
+      const missingCells = columnCount ? Math.max(0, columnCount - cells.length) : 0;
+      return rowCount + missingCells + renderedCells.filter((cell) => !clean(cell)).length;
+    }, 0);
+  }, 0);
+  const emptyCells = countEmptyCells(model.bodyTables);
+  if (emptyCells) push("warn", "В основній частині є порожні комірки таблиці", `Кількість порожніх комірок: ${emptyCells}. Перевірте, чи це не незаповнені реквізити.`);
+  const emptyAttachmentCells = countEmptyCells(model.attachments);
+  if (emptyAttachmentCells) push("warn", "У додатку є порожні комірки таблиці", `Кількість порожніх комірок: ${emptyAttachmentCells}. Незаповнений рядок списку або графіка потрапить у підписаний наказ.`);
+  if ((model.bodyTables || []).some((table) => Number(table.afterDirective || 0) > flattenDirectives(model.directives || []).length)) {
+    push("warn", "Таблицю прив’язано до відсутнього пункту", "Таблицю буде додано наприкінці розпорядчої частини; перевірте номер у полі «Після пункту №». ");
+  }
+
+  if ((model.points || []).some((point) => /^\s*\d+(?:\.\d+)*[.)]\s+/u.test(point))) {
+    push("warn", "У тексті пункту залишилася ручна нумерація", "Нумерацію формує Word; видаліть номер із самого тексту пункту.");
+  }
+  return results;
+}
+
+function schoolYears(value) {
+  return [...new Set([...String(value ?? "").matchAll(/\b((?:19|20)\d{2}\s*\/\s*(?:19|20)\d{2})\b/gu)].map((match) => match[1].replace(/\s/g, "")))];
+}
+
+function parseIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(String(value ?? ""))) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
 }
 
 function validateFields(fields, data, push, prefix = "", parentPath = "") {

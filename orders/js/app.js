@@ -1,9 +1,10 @@
 import { ORDER_TEMPLATES, TEMPLATE_CATEGORIES, ACADEMIC_MONTHS, RECORD_SERIES_OPTIONS, clean, formatDateUa } from "./templates.js";
-import { DEFAULT_PROFILE, buildOrderModel, validateOrder, validateTemplateSchemas, isOrderReady } from "./core.js";
+import { DEFAULT_PROFILE, buildOrderModel, validateOrder, validateTemplateSchemas, isOrderReady, flattenDirectives, directiveText, directiveDeadlineText } from "./core.js";
 import { downloadDocx, triggerDownload, verifyGeneratedDocx } from "./docx.js";
 import { loadProfile, saveProfile, loadLetterheadAsset, saveLetterheadAsset, deleteLetterheadAsset, clearAllLocalData, sanitizeProfile, saveOrderRecord, listOrderRecords, deleteOrderRecord, clearOrderRecords, importOrderRecords } from "./storage.js";
 import { validateImageFileBytes, decodeImageDimensions } from "./image.js";
 import { findDuplicateOrderNumber, registrationStats, suggestOrderNumber } from "./registration.js";
+import { createAugustPackageRecords, persistOrderPackage, validateOrderPackage } from "./order-package.js";
 
 const state = {
   profile: loadProfile(),
@@ -34,7 +35,6 @@ const ui = {
   categoryFilter: el("category-filter"),
   monthNav: el("month-nav"),
   templateGrid: el("template-grid"),
-  universalGrid: el("universal-grid"),
   universalSection: el("universal-section"),
   catalogTitle: el("catalog-title"),
   catalogSummary: el("catalog-summary"),
@@ -43,6 +43,8 @@ const ui = {
   templateCategory: el("template-category"),
   templateTitle: el("template-title"),
   templateDescription: el("template-description"),
+  autoTextTitle: el("auto-text-title"),
+  autoTextDescription: el("auto-text-description"),
   templateNotice: el("template-notice"),
   templateSamplePanel: el("template-sample-panel"),
   templateSampleText: el("template-sample-text"),
@@ -158,6 +160,10 @@ function bindCatalogActions() {
     }
     renderCatalog();
   });
+  el("create-free-order").addEventListener("click", () => {
+    const freeOrder = ORDER_TEMPLATES.find((template) => template.id === "free-order");
+    if (freeOrder) selectTemplate(freeOrder);
+  });
 }
 
 function bindEditorActions() {
@@ -225,6 +231,47 @@ function bindSavedOrderActions() {
     } catch {
       toast("Браузер не дозволив видалити локальні записи.");
     }
+  });
+
+  el("create-august-package")?.addEventListener("click", async () => {
+    const schoolYear = clean(el("package-school-year")?.value);
+    const orderDate = clean(el("package-order-date")?.value);
+    if (!/^\d{4}\/\d{4}$/u.test(schoolYear) || Number(schoolYear.slice(5)) !== Number(schoolYear.slice(0, 4)) + 1) {
+      toast("Навчальний рік має бути у форматі 2026/2027.");
+      return;
+    }
+    if (!/^\d{4}-08-\d{2}$/u.test(orderDate)) {
+      toast("Для серпневого пакета виберіть дату в серпні.");
+      return;
+    }
+    if (!confirm("Додати до локальної бібліотеки 32 чернетки серпневого пакета?")) return;
+    const records = createAugustPackageRecords({ schoolYear, orderDate });
+    try {
+      await persistOrderPackage(records, saveOrderRecord);
+      await refreshSavedOrders();
+      toast("Створено 32 чернетки. Кожну потрібно доповнити фактичними даними й перевіреними підставами.", 5000);
+    } catch (error) {
+      console.error(error);
+      toast("Не вдалося зберегти весь серпневий пакет.");
+    }
+  });
+
+  el("validate-order-package")?.addEventListener("click", async () => {
+    await refreshSavedOrders(false);
+    renderPackageValidation(validateOrderPackage(state.savedOrders, ORDER_TEMPLATES, state.profile));
+  });
+}
+
+function renderPackageValidation(results) {
+  const target = el("package-validation-results");
+  if (!target) return;
+  target.replaceChildren();
+  (results || []).forEach((result) => {
+    const row = document.createElement("div"); row.className = `package-result ${result.level}`;
+    const strong = document.createElement("strong"); strong.textContent = result.title;
+    row.appendChild(strong);
+    if (result.detail) { const detail = document.createElement("div"); detail.textContent = result.detail; row.appendChild(detail); }
+    target.appendChild(row);
   });
 }
 
@@ -591,6 +638,7 @@ function renderCatalog() {
   const query = clean(state.search).toLocaleLowerCase("uk-UA");
   const normalMode = !state.showAll && !query;
   const templates = ORDER_TEMPLATES.filter((t) => {
+    if (t.id === "free-order") return false;
     const categoryOk = state.category === "Усі" || t.category === state.category;
     const searchText = `${t.title} ${t.description} ${(t.tags || []).join(" ")}`.toLocaleLowerCase("uk-UA");
     const searchOk = !query || searchText.includes(query);
@@ -607,7 +655,7 @@ function renderCatalog() {
       : `Накази на ${monthNameLocative(month?.name || "місяць")}`;
 
   ui.catalogSummary.textContent = `${templates.length} ${nounTemplate(templates.length)}`;
-  el("show-all-templates").textContent = state.showAll ? "Повернутися до місяця" : "Усі шаблони";
+  el("show-all-templates").textContent = state.showAll ? "Повернутися до місяця" : "Усі готові шаблони";
 
   ui.templateGrid.replaceChildren();
   templates.forEach((t) => ui.templateGrid.appendChild(createTemplateCard(t)));
@@ -621,15 +669,7 @@ function renderCatalog() {
     ui.templateGrid.appendChild(empty);
   }
 
-  const showUniversalSeparately = normalMode;
-  ui.universalSection.classList.toggle("is-hidden", !showUniversalSeparately);
-  if (showUniversalSeparately) renderUniversalSection();
-}
-
-function renderUniversalSection() {
-  ui.universalGrid.replaceChildren();
-  ORDER_TEMPLATES.filter((t) => t.category === "Універсальні").slice(0, 4)
-    .forEach((t) => ui.universalGrid.appendChild(createTemplateCard(t, true)));
+  ui.universalSection.classList.remove("is-hidden");
 }
 
 function createTemplateCard(t, compact = false) {
@@ -673,7 +713,10 @@ function templateSampleText(template) {
 }
 
 function sampleFieldValue(field) {
-  if (field.type === "repeatable") return [Object.fromEntries((field.fields || []).map((child) => [child.id, sampleFieldValue(child)]))];
+  if (field.type === "repeatable" && Array.isArray(field.defaultItems) && field.defaultItems.length) return structuredClone(field.defaultItems);
+  if (field.type === "repeatable") return field.required || Number(field.minItems) > 0
+    ? [Object.fromEntries((field.fields || []).map((child) => [child.id, sampleFieldValue(child)]))]
+    : [];
   if (field.default !== undefined && field.default !== "") return field.default;
   if (field.type === "date") return "2026-09-01";
   if (field.type === "number") return field.min || 1;
@@ -708,6 +751,11 @@ function renderEditor() {
   ui.templateCategory.textContent = state.template.category;
   ui.templateTitle.textContent = state.template.title;
   ui.templateDescription.textContent = state.template.description;
+  const isFreeOrder = state.template.id === "free-order";
+  ui.autoTextTitle.textContent = isFreeOrder ? "Структура наказу вже готова" : "Стандартний текст уже підготовлено";
+  ui.autoTextDescription.textContent = isFreeOrder
+    ? "Введіть заголовок, преамбулу та доручення. Нумерація, оформлення строків і пункт контролю формуються автоматично."
+    : "Заповнюйте лише змінні дані. Типові формулювання формуються автоматично.";
   ui.templateNotice.replaceChildren();
   const noticeText = [state.template.notice, state.template.legalReview?.source].filter(Boolean).join(" Перевірено в сервісі: ");
   if (noticeText) ui.templateNotice.append(document.createTextNode(noticeText));
@@ -761,9 +809,22 @@ function renderOrderForm() {
   primary.appendChild(createSimpleInput({ id: "recordSeries", label: "Серія реєстрації *", type: "select", required: true, options: RECORD_SERIES_OPTIONS, help: "Звірте з локальною інструкцією та номенклатурою справ закладу." }, state.orderMeta, (v) => { state.orderMeta.recordSeries = v; renderEditorBadges(); markEditorDirty(); }));
   ui.form.appendChild(primary);
 
-  const regular = state.template.fields.filter((field) => !field.advanced);
+  const regular = state.template.fields.filter((field) => !field.advanced && !field.collapsed);
+  const prepared = state.template.fields.filter((field) => !field.advanced && field.collapsed);
   const advanced = state.template.fields.filter((field) => field.advanced);
   regular.forEach((field) => ui.form.appendChild(createField(field, state.formData)));
+
+  if (prepared.length) {
+    const details = document.createElement("details");
+    details.className = "prepared-order";
+    const summary = document.createElement("summary");
+    summary.textContent = state.template.preparedSummary || `Типові налаштування вже заповнено (${prepared.length}) — змінити за потреби`;
+    const body = document.createElement("div");
+    body.className = "prepared-order-body";
+    prepared.forEach((field) => body.appendChild(createField(field, state.formData)));
+    details.append(summary, body);
+    ui.form.appendChild(details);
+  }
 
   if (advanced.length) {
     const details = document.createElement("details");
@@ -835,6 +896,7 @@ function suggestNextOrderNumber() {
 function createRepeatable(field, target) {
   if (!Array.isArray(target[field.id])) target[field.id] = [];
   const wrapper = document.createElement("div"); wrapper.className = "repeatable";
+  if (field.simple) wrapper.classList.add("is-simple-repeatable");
   wrapper.dataset.repeatableId = field.id;
   const head = document.createElement("div"); head.className = "repeatable-head";
   const textWrap = document.createElement("div");
@@ -847,7 +909,8 @@ function createRepeatable(field, target) {
     target[field.id].push(blankRow(field.fields));
     renderOrderForm();
     markEditorDirty();
-    const newInputs = ui.form.querySelectorAll(`[name="${field.fields[0]?.id || ""}"]`);
+    const firstVisibleField = field.fields.find((item) => !item.advanced) || field.fields[0];
+    const newInputs = ui.form.querySelectorAll(`[name="${firstVisibleField?.id || ""}"]`);
     newInputs[newInputs.length - 1]?.focus();
   });
   head.append(textWrap, add); wrapper.appendChild(head);
@@ -865,8 +928,18 @@ function createRepeatable(field, target) {
       ui.form.querySelector(`[data-repeatable-id="${field.id}"] .repeatable-head button`)?.focus();
     });
     const grid = document.createElement("div"); grid.className = "repeatable-item-grid";
-    field.fields.forEach((sub) => grid.appendChild(createSimpleInput(sub, row, (value) => { row[sub.id] = value; markEditorDirty(); })));
-    item.append(itemNumber, remove, grid); items.appendChild(item);
+    const visibleFields = field.fields.filter((sub) => !sub.advanced);
+    const advancedFields = field.fields.filter((sub) => sub.advanced);
+    visibleFields.forEach((sub) => grid.appendChild(createSimpleInput(sub, row, (value) => { row[sub.id] = value; markEditorDirty(); })));
+    item.append(itemNumber, remove, grid);
+    if (advancedFields.length) {
+      const details = document.createElement("details"); details.className = "repeatable-item-advanced";
+      const summary = document.createElement("summary"); summary.textContent = Number(row.level) > 0 ? "Підпункт налаштовано" : "Зробити підпунктом";
+      const advancedGrid = document.createElement("div"); advancedGrid.className = "repeatable-item-grid";
+      advancedFields.forEach((sub) => advancedGrid.appendChild(createSimpleInput(sub, row, (value) => { row[sub.id] = value; markEditorDirty(); })));
+      details.append(summary, advancedGrid); item.appendChild(details);
+    }
+    items.appendChild(item);
   });
   wrapper.appendChild(items);
   return wrapper;
@@ -875,7 +948,11 @@ function createRepeatable(field, target) {
 function defaultFormData(t) {
   const data = {};
   for (const field of t.fields) {
-    if (field.type === "repeatable") data[field.id] = Array.from({ length: field.minItems || 0 }, () => blankRow(field.fields));
+    if (field.type === "repeatable") {
+      data[field.id] = Array.isArray(field.defaultItems) && field.defaultItems.length
+        ? structuredClone(field.defaultItems)
+        : Array.from({ length: field.minItems || 0 }, () => blankRow(field.fields));
+    }
     else data[field.id] = field.default ?? "";
   }
   return data;
@@ -956,9 +1033,19 @@ function renderPreview() {
   }
 
   appendPreviewText(ui.preview, model.title || "Про …", "order-title", !model.title);
-  appendPreviewText(ui.preview, model.preamble || "Преамбула / підстава", "preamble", !model.preamble);
+  const preambleParagraphs = model.preambleParagraphs?.length ? model.preambleParagraphs : [model.preamble || "Преамбула / підстава"];
+  preambleParagraphs.forEach((paragraph) => appendPreviewText(ui.preview, paragraph, "preamble", !model.preamble));
   appendPreviewText(ui.preview, "НАКАЗУЮ:", "order-command");
-  if (model.points.length) model.points.forEach((point, i) => appendPreviewText(ui.preview, `${i + 1}. ${point}`, "order-point"));
+  const flatDirectives = model.directives?.length
+    ? flattenDirectives(model.directives)
+    : model.points.map((text) => ({ executor: "", text, deadline: null, level: 0 }));
+  appendPreviewBodyTables(ui.preview, model.bodyTables, 0);
+  if (flatDirectives.length) flatDirectives.forEach((directive, index) => {
+    const number = previewDirectiveNumber(flatDirectives, index);
+    appendPreviewText(ui.preview, `${number} ${directiveText(directive)}`, `order-point level-${Math.min(2, directive.level || 0)}`);
+    if (directive.deadline?.value) appendPreviewText(ui.preview, directiveDeadlineText(directive.deadline), "order-deadline");
+    appendPreviewBodyTables(ui.preview, model.bodyTables, index + 1);
+  });
   else appendPreviewText(ui.preview, "1. Пункт наказу", "order-point placeholder");
   if (model.grounds) appendPreviewText(ui.preview, `Підстава: ${model.grounds}`, "grounds");
 
@@ -998,6 +1085,30 @@ function renderPreview() {
     ui.preview.appendChild(section);
   });
   requestAnimationFrame(updatePreviewScale);
+}
+
+function previewDirectiveNumber(items, targetIndex) {
+  const counters = [0, 0, 0];
+  for (let index = 0; index <= targetIndex; index += 1) {
+    const level = Math.min(2, Math.max(0, Number(items[index].level) || 0));
+    counters[level] += 1;
+    for (let deeper = level + 1; deeper < counters.length; deeper += 1) counters[deeper] = 0;
+  }
+  const level = Math.min(2, Math.max(0, Number(items[targetIndex].level) || 0));
+  return `${counters.slice(0, level + 1).join(".")}.`;
+}
+
+function appendPreviewBodyTables(parent, tables, afterDirective) {
+  (tables || []).filter((table) => Number(table.afterDirective || 0) === afterDirective).forEach((bodyTable) => {
+    if (bodyTable.title) appendPreviewText(parent, bodyTable.title, "body-table-title");
+    const table = document.createElement("table"); table.className = "appendix-table body-table";
+    const thead = document.createElement("thead"); const headRow = document.createElement("tr");
+    bodyTable.columns.forEach((column) => { const th = document.createElement("th"); th.textContent = column; headRow.appendChild(th); });
+    thead.appendChild(headRow); table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    bodyTable.rows.forEach((row) => { const tr = document.createElement("tr"); bodyTable.columns.forEach((_, cellIndex) => { const td = document.createElement("td"); td.textContent = row[cellIndex] || ""; tr.appendChild(td); }); tbody.appendChild(tr); });
+    table.appendChild(tbody); parent.appendChild(table);
+  });
 }
 
 function updatePreviewScale() {
@@ -1054,6 +1165,11 @@ function renderEditorValidation() {
   if (!ui.editorValidationBar || !state.template) return;
   ui.form.querySelectorAll(".field.has-error").forEach((field) => field.classList.remove("has-error"));
   ui.form.querySelectorAll(".field-error").forEach((node) => node.remove());
+  if (!state.editorDirty && !state.savedOrderId) {
+    ui.editorValidationBar.replaceChildren();
+    ui.editorValidationBar.classList.add("is-hidden");
+    return;
+  }
   const report = runValidation();
   const actionable = report.results.filter((result) => result.level === "error" || result.affectsReadiness === true);
   ui.editorValidationBar.replaceChildren();
@@ -1080,6 +1196,11 @@ function focusValidationTarget(result) {
   const target = ui.form.querySelector(`[name="${CSS.escape(result.fieldId)}"]`);
   if (!target) return;
   if (!ui.previewModal.classList.contains("is-hidden")) closePreview();
+  let details = target.closest("details");
+  while (details) {
+    details.open = true;
+    details = details.parentElement?.closest("details");
+  }
   target.scrollIntoView({ behavior: "smooth", block: "center" });
   target.focus({ preventScroll: true });
 }

@@ -30,7 +30,7 @@
         <section id="catalog-view" class="catalog-view">
           <div class="catalog-head compact-head">
             <div>
-              <div class="eyebrow">2026/2027 навчальний рік</div>
+              <div class="eyebrow">Спосіб 1 · готовий шаблон</div>
               <div class="catalog-title-line">
                 <h2 id="catalog-title">Накази на серпень</h2>
                 <span id="catalog-summary" class="catalog-summary"></span>
@@ -38,7 +38,7 @@
             </div>
             <label class="search-field catalog-search">
               <span class="sr-only">Пошук наказу</span>
-              <input id="template-search" type="search" autocomplete="off" placeholder="Пошук наказу…">
+              <input id="template-search" type="search" autocomplete="off" placeholder="Введіть назву або тему наказу…">
             </label>
           </div>
 
@@ -49,23 +49,24 @@
 
           <div class="catalog-filterbar" aria-label="Фільтри каталогу">
             <div id="month-nav" class="month-nav" aria-label="Місяці навчального року"></div>
-            <label class="compact-select inline-select">
-              <span class="sr-only">Категорія</span>
-              <select id="category-filter" aria-label="Категорія наказів"></select>
-            </label>
+              <label class="compact-select inline-select">
+                <span class="sr-only">Категорія</span>
+                <select id="category-filter" aria-label="Категорія наказів"></select>
+              </label>
+              <button id="show-all-templates" type="button" class="btn btn-ghost catalog-all-button">Усі готові шаблони</button>
           </div>
 
           <div id="template-grid" class="template-grid" aria-live="polite"></div>
 
-          <section id="universal-section" class="universal-section" aria-labelledby="universal-title">
+          <section id="universal-section" class="universal-section free-order-section" aria-labelledby="universal-title">
             <div class="section-title-row">
               <div>
-                <h3 id="universal-title">Універсальні шаблони</h3>
-                <p>Для ситуацій, яких немає у календарній добірці.</p>
+                <div class="eyebrow">Спосіб 2 · без готового шаблону</div>
+                <h3 id="universal-title">Створити вільний наказ</h3>
+                <p>Якщо потрібної теми немає, введіть заголовок, преамбулу та доручення своїми словами.</p>
               </div>
-              <button id="show-all-templates" type="button" class="text-button">Усі шаблони</button>
+              <button id="create-free-order" type="button" class="btn btn-secondary">Створити вільний наказ</button>
             </div>
-            <div id="universal-grid" class="universal-grid"></div>
           </section>
         </section>
 
@@ -92,7 +93,7 @@
 
               <div class="auto-text-note">
                 <span class="auto-icon" aria-hidden="true">✓</span>
-                <div><strong>Стандартний текст уже підготовлено</strong><span>Заповнюйте лише змінні дані. Типові формулювання формуються автоматично.</span></div>
+                <div><strong id="auto-text-title">Стандартний текст уже підготовлено</strong><span id="auto-text-description">Заповнюйте лише змінні дані. Типові формулювання формуються автоматично.</span></div>
               </div>
 
               <details id="template-sample-panel" class="editor-template-sample">
@@ -128,6 +129,21 @@
             </label>
           </div>
           <div class="local-data-note"><strong>Важливо:</strong> ці накази зберігаються лише у браузері цього комп’ютера і можуть містити персональні дані.</div>
+          <details class="utility-details package-tools">
+            <summary>Серпневий пакет і міжнаказова перевірка</summary>
+            <div class="utility-content">
+              <p>Створіть 32 безпечні чернетки-каркаси з каталогу реального серпневого пакета або перевірте вже збережені накази на дублікати та розбіжності між таблицями.</p>
+              <div class="package-inputs">
+                <label>Навчальний рік<input id="package-school-year" type="text" value="2026/2027" maxlength="20"></label>
+                <label>Дата чернеток<input id="package-order-date" type="date" value="2026-08-01"></label>
+              </div>
+              <div class="utility-actions">
+                <button id="create-august-package" type="button" class="btn btn-secondary">Створити 32 чернетки</button>
+                <button id="validate-order-package" type="button" class="btn btn-ghost">Перевірити збережені накази</button>
+              </div>
+              <div id="package-validation-results" class="package-validation-results" aria-live="polite"></div>
+            </div>
+          </details>
           <div id="saved-orders-list" class="saved-orders-list"></div>
           <details class="utility-details saved-utility">
             <summary>Резервна копія збережених наказів</summary>

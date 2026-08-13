@@ -1,3 +1,5 @@
+import { LEGAL_BASIS_OPTIONS, formatLegalBasis } from "./legal-basis.js";
+
 export const ACADEMIC_MONTHS = [
   { id: "08", name: "Серпень", short: "Сер" },
   { id: "09", name: "Вересень", short: "Вер" },
@@ -37,6 +39,13 @@ const select = (id, label, optionsList, options = {}) => ({ type: "select", id, 
 const repeatable = (id, label, fields, options = {}) => ({ type: "repeatable", id, label, fields, ...options });
 
 const baseAdvanced = () => [
+  repeatable("legalBasis", "Нормативні підстави з довідника", [
+    select("id", "Нормативний акт *", LEGAL_BASIS_OPTIONS, { required: true }),
+  ], {
+    advanced: true,
+    maxItems: 20,
+    help: "Конструктор підставить реквізити акта. Для 40 записів реєстр прямо підтвердив чинність 12.08.2026; для 11 статус лишився неоднозначним, і форма покаже попередження. Перед підписанням перевірте актуальність та застосовність підстави.",
+  }),
   textarea("basis", "Додаткова підстава", {
     advanced: true,
     maxlength: 1200,
@@ -47,6 +56,26 @@ const baseAdvanced = () => [
     advanced: true,
     maxlength: 1200,
     placeholder: "Необов’язково",
+  }),
+  repeatable("extraDirectives", "Структуровані доручення", [
+    select("level", "Рівень", [
+      { value: "0", label: "Основний пункт" },
+      { value: "1", label: "Підпункт" },
+      { value: "2", label: "Підпункт другого рівня" },
+    ], { default: "0" }),
+    text("executor", "Виконавець за посадою", { maxlength: 220, placeholder: "Класним керівникам" }),
+    textarea("text", "Доручення *", { required: true, maxlength: 2200 }),
+    select("deadlineKind", "Тип строку", [
+      { value: "", label: "Без окремого строку" },
+      { value: "date", label: "Конкретна дата (РРРР-ММ-ДД)" },
+      { value: "preset", label: "Типовий строк" },
+      { value: "free", label: "Власне формулювання" },
+    ], { default: "" }),
+    text("deadlineValue", "Строк", { maxlength: 120, placeholder: "Постійно / 2026-08-20 / За потреби" }),
+  ], {
+    advanced: true,
+    maxItems: 100,
+    help: "Виконавець зазначається за посадою. Рівні формують автоматичну багаторівневу нумерацію, строк друкується окремо праворуч.",
   }),
   text("controlPerson", "Контроль за виконанням", {
     advanced: true,
@@ -90,11 +119,11 @@ export const RECORD_SERIES_OPTIONS = Object.freeze([
 
 const RECORD_SERIES_BY_TEMPLATE = Object.freeze({
   "school-year-organization": "Основна діяльність",
-  "pedagogical-workload": "Основна діяльність",
+  "pedagogical-workload": "Кадрові питання",
   "responsible-safety": "Основна діяльність",
   "student-enrollment": "Рух здобувачів освіти",
   "school-meals": "Основна діяльність",
-  "class-teachers": "Основна діяльність",
+  "class-teachers": "Кадрові питання",
   "attestation-commission": "Основна діяльність",
   "adaptation-grade-1-5": "Основна діяльність",
   "school-olympiad": "Основна діяльність",
@@ -110,7 +139,7 @@ const RECORD_SERIES_BY_TEMPLATE = Object.freeze({
   "dpa-exemption": "Основна діяльність",
   "education-documents": "Основна діяльність",
   "student-promotion": "Рух здобувачів освіти",
-  "preliminary-tariffication": "Основна діяльність",
+  "preliminary-tariffication": "Кадрові питання",
   "responsible-person": "Основна діяльність",
   "commission": "Основна діяльність",
   "approve-document": "Основна діяльність",
@@ -120,7 +149,7 @@ const RECORD_SERIES_BY_TEMPLATE = Object.freeze({
 function template(config) {
   const needsVerification = Boolean(config.needsVerification || LEGAL_SENSITIVE_TEMPLATES.has(config.id));
   const hasVerificationField = (config.fields || []).some((field) => field.id === "verifiedBasis");
-  const fields = needsVerification && !hasVerificationField
+  const verifiedFields = needsVerification && !hasVerificationField
     ? [...(config.fields || []), textarea("verifiedBasis", "Перевірена чинна нормативна підстава *", {
         required: true,
         advanced: true,
@@ -129,7 +158,13 @@ function template(config) {
         help: "Це поле є журналом юридичної перевірки й не підставляється автоматично в текст наказу.",
       })]
     : (config.fields || []);
-  return {
+  const legalBasisIds = Array.isArray(config.legalBasisIds) ? config.legalBasisIds : [];
+  const fields = legalBasisIds.length
+    ? verifiedFields.map((field) => field.id === "legalBasis"
+      ? { ...field, defaultItems: legalBasisIds.map((id) => ({ id })) }
+      : field)
+    : verifiedFields;
+  const result = {
     frequency: "Щорічно",
     tags: [],
     months: [],
@@ -143,6 +178,14 @@ function template(config) {
       ...(config.legalReview || {}),
     } : null,
   };
+  if (legalBasisIds.length && typeof config.build === "function") {
+    result.build = (data) => {
+      const selected = Array.isArray(data.legalBasis) ? data.legalBasis.filter((item) => clean(item?.id)) : [];
+      const effectiveData = selected.length ? data : { ...data, legalBasis: legalBasisIds.map((id) => ({ id })) };
+      return config.build.call(result, effectiveData);
+    };
+  }
+  return result;
 }
 
 export const ORDER_TEMPLATES = [
@@ -150,49 +193,644 @@ export const ORDER_TEMPLATES = [
     id: "school-year-organization",
     category: "Початок року",
     months: ["08", "09"],
-    title: "Про організацію освітнього процесу та режим роботи",
-    description: "Базовий наказ на початок навчального року: старт освітнього процесу, режим роботи та організаційні доручення.",
-    tags: ["початок року", "режим роботи", "освітній процес"],
+    title: "Про організацію освітнього процесу у навчальному році",
+    description: "Комплексний наказ про строки навчального року, формат освітнього процесу, хвилину мовчання, гнучкий режим, індивідуальні форми та першочергові доручення класним керівникам.",
+    tags: ["початок року", "організація освітнього процесу", "навчальний рік", "хвилина мовчання", "формат навчання"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "cmu-school-year-847"],
     fields: [
       text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
-      date("startDate", "Початок навчальних занять *", { required: true, default: "2026-09-01" }),
+      date("startDate", "Початок навчального року *", { required: true, default: "2026-09-01" }),
+      date("endDate", "Завершення навчального року *", { required: true, default: "2027-06-30" }),
       select("format", "Основний формат роботи", [
         { value: "очному форматі", label: "Очний" },
         { value: "змішаному форматі", label: "Змішаний" },
         { value: "дистанційному форматі", label: "Дистанційний" },
       ], { default: "очному форматі" }),
+      text("classRange", "Класи, охоплені наказом *", { required: true, default: "1–9", maxlength: 80 }),
+      text("inclusiveClasses", "Інклюзивні класи", { maxlength: 160, placeholder: "Наприклад: 4 клас" }),
+      text("minuteSilenceTime", "Час загальнонаціональної хвилини мовчання", { default: "09:00", maxlength: 20 }),
+      text("firstLessonTheme", "Тема Першого уроку", { maxlength: 300, placeholder: "Якщо тему вже визначено" }),
+      select("allowIndividualForms", "Передбачити індивідуальні форми здобуття освіти", [
+        { value: "yes", label: "Так" },
+        { value: "no", label: "Ні" },
+      ], { default: "yes" }),
       ...baseAdvanced(),
     ],
     build(data) {
-      const preamble = withBasis(`З метою організованого початку ${clean(data.schoolYear)} навчального року, належної організації освітнього процесу та узгодження режиму роботи закладу`, data.basis);
       const points = [
-        `Організувати освітній процес у ${clean(data.schoolYear)} навчальному році з ${formatDateUa(data.startDate)} у ${clean(data.format)}.`,
-        "Затвердити та забезпечити дотримання режиму роботи закладу відповідно до освітньої програми, навчального плану та затвердженого розкладу.",
-        "Заступникам директора та педагогічним працівникам забезпечити виконання освітньої програми, дотримання вимог безпеки та належну організацію роботи з учнями.",
+        orderDirective("Колективу закладу", `розпочати ${clean(data.schoolYear)} навчальний рік ${formatDateUa(data.startDate)} та завершити ${formatDateUa(data.endDate)}.`),
+        orderDirective("Колективу закладу", `організувати освітній процес для ${clean(data.classRange)} класів у ${clean(data.format)} з дотриманням вимог цивільного захисту та локальних алгоритмів безпеки.`, 1, deadlinePreset(`Із ${formatDateUa(data.startDate)}`)),
+        orderDirective("Колективу закладу", "забезпечувати гнучку організацію освітнього процесу та коригування розкладу, календарного планування або формату роботи у разі загрози безпеці, аварійних відключень чи інших надзвичайних обставин.", 1, deadlinePreset("За потреби")),
       ];
-      return finish(this.title, preamble, points, data);
+      if (clean(data.minuteSilenceTime)) points.push(orderDirective("Колективу закладу", `забезпечувати проведення загальнонаціональної хвилини мовчання о ${clean(data.minuteSilenceTime)}.`, 1, deadlinePreset("Щоденно")));
+      if (data.allowIndividualForms !== "no") points.push(orderDirective("Адміністрації закладу", "організовувати здобуття освіти за індивідуальною формою для учнів, які мають на це законні підстави, після отримання й перевірки необхідних документів.", 0, deadlinePreset("За заявами та у встановленому порядку")));
+      if (clean(data.inclusiveClasses)) points.push(orderDirective("Адміністрації закладу", `організувати інклюзивне навчання у таких класах: ${clean(data.inclusiveClasses)}.`, 0, deadlinePreset(`Із ${formatDateUa(data.startDate)}`)));
+      points.push(orderDirective("Класним керівникам", "провести вступні бесіди й інструктажі щодо збереження життя і здоров’я, правил поведінки та дій у надзвичайних ситуаціях.", 0, deadlineDate(data.startDate)));
+      if (clean(data.firstLessonTheme)) points.push(orderDirective("Класним керівникам", `провести Перший урок за темою «${clean(data.firstLessonTheme).replace(/[«»"]/gu, "")}».`, 1, deadlinePreset(formatDateUa(data.startDate))));
+      return finish(`Про організацію освітнього процесу у ${clean(data.schoolYear)} навчальному році`,
+        withBasis(`З метою організованого початку ${clean(data.schoolYear)} навчального року, забезпечення права здобувачів освіти на якісну освіту та створення безпечного освітнього середовища`, data.basis),
+        points, data);
+    },
+  }),
+  template({
+    id: "school-work-regime",
+    category: "Початок року",
+    months: ["08", "09"],
+    title: "Про затвердження режиму роботи закладу у навчальному році",
+    description: "Робочий тиждень, години роботи, зміни, початок занять, тривалість уроків і перерв, хвилина мовчання та дії під час сигналу небезпеки.",
+    tags: ["режим роботи", "графік роботи", "тривалість уроків", "перерви", "зміни", "розклад"],
+    preparedSummary: "Типовий режим уже заповнено — перевірити тривалість уроків, перерви та відповідальних",
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "cmu-school-year-847", "moh-sanitary-2205"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      date("effectiveDate", "Дата введення режиму в дію *", { required: true, default: "2026-09-01" }),
+      text("workingWeek", "Робочий тиждень *", { required: true, default: "п’ятиденний, з понеділка по п’ятницю", maxlength: 220, collapsed: true }),
+      text("openingTime", "Початок роботи закладу *", { required: true, default: "08:00", maxlength: 20 }),
+      text("closingTime", "Завершення роботи закладу *", { required: true, default: "18:00", maxlength: 20 }),
+      number("shifts", "Кількість змін *", { required: true, default: 1, min: 1, max: 3 }),
+      text("classRange", "Класи *", { required: true, default: "1–9", maxlength: 80 }),
+      text("lessonStart", "Початок навчальних занять *", { required: true, default: "08:30", maxlength: 20 }),
+      repeatable("lessonDurations", "Тривалість уроків *", [
+        text("classGroup", "Класи *", { required: true, maxlength: 80, placeholder: "1 класи" }),
+        number("minutes", "Хвилин *", { required: true, min: 20, max: 60 }),
+      ], {
+        required: true,
+        maxItems: 20,
+        collapsed: true,
+        defaultItems: [
+          { classGroup: "1 класи", minutes: 35 },
+          { classGroup: "2–4 класи", minutes: 40 },
+          { classGroup: "5–9 класи", minutes: 45 },
+        ],
+      }),
+      text("breakDuration", "Тривалість перерв *", { required: true, default: "від 10 до 20 хвилин з урахуванням часу на харчування", maxlength: 220, collapsed: true }),
+      text("minuteSilenceTime", "Час хвилини мовчання", { default: "09:00", maxlength: 20, collapsed: true }),
+      text("scheduleResponsible", "Хто складає розклад (посада) *", { required: true, default: "заступнику директора з навчально-виховної роботи", maxlength: 220, collapsed: true }),
+      select("includeAfterSchoolGroup", "Передбачити групу продовженого дня", [
+        { value: "yes", label: "Так" },
+        { value: "no", label: "Ні" },
+      ], { default: "no", collapsed: true }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const durations = (data.lessonDurations || [])
+        .filter((row) => clean(row.classGroup) && clean(row.minutes))
+        .map((row) => `${clean(row.classGroup)} — ${clean(row.minutes)} хвилин`);
+      const points = [
+        orderDirective("", `Затвердити Режим роботи закладу на ${clean(data.schoolYear)} навчальний рік та ввести його в дію з ${formatDateUa(data.effectiveDate)} (додаток 1).`),
+        orderDirective("", `Установити ${clean(data.workingWeek)} робочий тиждень для учасників освітнього процесу.`),
+        orderDirective("", `Установити час роботи закладу з ${clean(data.openingTime)} до ${clean(data.closingTime)}.`),
+        orderDirective("", `Організувати навчання у ${clean(data.shifts)} ${Number(data.shifts) === 1 ? "зміну" : "зміни"} для ${clean(data.classRange)} класів; початок занять — о ${clean(data.lessonStart)}.`),
+        orderDirective("", `Установити тривалість перерв: ${normalizeSentence(data.breakDuration)}.`),
+      ];
+      if (clean(data.minuteSilenceTime)) points.push(orderDirective("Колективу закладу", `забезпечувати проведення загальнонаціональної хвилини мовчання о ${clean(data.minuteSilenceTime)}.`, 0, deadlinePreset("Щоденно")));
+      points.push(orderDirective("Учасникам освітнього процесу", "під час сигналу небезпеки припиняти роботу в навчальних приміщеннях та діяти за затвердженим алгоритмом переміщення до укриття.", 0, deadlinePreset("Під час сигналу оповіщення")));
+      if (data.includeAfterSchoolGroup === "yes") points.push(orderDirective("Адміністрації закладу", "організувати роботу групи продовженого дня відповідно до затвердженого режиму та окремого розкладу."));
+      points.push(orderDirective(data.scheduleResponsible, "скласти розклад навчальних занять відповідно до затвердженого режиму роботи й санітарних вимог.", 0, deadlineDate(data.effectiveDate)));
+      const order = finish(`Про затвердження режиму роботи закладу у ${clean(data.schoolYear)} навчальному році`,
+        withBasis(`З метою впорядкування режиму роботи закладу та належної організації освітнього процесу у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        points, data);
+      return {
+        ...order,
+        attachments: [{
+          kind: "approved",
+          title: `Режим роботи закладу на ${clean(data.schoolYear)} навчальний рік`,
+          paragraphs: [
+            `1. Робочий тиждень: ${normalizeSentence(data.workingWeek)}.`,
+            `2. Час роботи закладу: з ${clean(data.openingTime)} до ${clean(data.closingTime)}.`,
+            `3. Навчання організовано у ${clean(data.shifts)} ${Number(data.shifts) === 1 ? "зміну" : "зміни"}; початок занять — о ${clean(data.lessonStart)}.`,
+            `4. Тривалість уроків: ${durations.join("; ")}.`,
+            `5. Перерви: ${normalizeSentence(data.breakDuration)}.`,
+            "6. Розклад занять, харчування та роботи гуртків затверджується окремо з урахуванням цього режиму.",
+            "7. Під час сигналів небезпеки діє затверджений алгоритм оповіщення та переміщення до укриття.",
+          ],
+        }],
+      };
+    },
+  }),
+  template({
+    id: "educational-program-introduction",
+    category: "Початок року",
+    months: ["08", "09"],
+    title: "Про введення в дію освітньої програми та річних навчальних планів",
+    description: "Введення освітньої програми й навчальних планів, перерозподіл годин, календарне планування, оприлюднення та аналіз виконання.",
+    tags: ["освітня програма", "навчальний план", "перерозподіл годин", "рішення педради", "календарне планування"],
+    preparedSummary: "Виконавці й типові строки вже заповнені — змінити за потреби",
+    needsVerification: true,
+    legalBasisIds: ["law-secondary-463", "cmu-primary-standard-87", "cmu-basic-standard-898", "mon-primary-programs-743", "mon-basic-program-235"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("programName", "Назва освітньої програми *", { required: true, default: "наскрізна освітня програма закладу для початкового та базового рівнів середньої освіти", maxlength: 500 }),
+      text("classRange", "Класи, для яких затверджено навчальні плани *", { required: true, default: "1–9", maxlength: 80 }),
+      date("effectiveDate", "Дата введення в дію *", { required: true, default: "2026-09-01" }),
+      date("councilDate", "Дата рішення педагогічної ради *", { required: true, default: "2026-08-28" }),
+      text("protocolNumber", "Номер протоколу педагогічної ради *", { required: true, default: "1", maxlength: 30 }),
+      repeatable("hourRedistribution", "Перерозподіл навчальних годин", [
+        text("className", "Клас *", { required: true, maxlength: 30 }),
+        text("subject", "Предмет / інтегрований курс *", { required: true, maxlength: 220 }),
+        text("hours", "Кількість годин *", { required: true, maxlength: 30, placeholder: "0,5" }),
+      ], { maxItems: 200 }),
+      text("teachers", "Виконавець для педагогічних працівників (посада) *", { required: true, default: "учителям закладу", maxlength: 220, collapsed: true }),
+      text("deputy", "Відповідальний за оприлюднення й аналіз (посада) *", { required: true, default: "заступнику директора з навчально-виховної роботи", maxlength: 220, collapsed: true }),
+      date("planningDeadline", "Строк підготовки календарно-тематичних планів *", { required: true, default: "2026-09-01", collapsed: true }),
+      date("publicationDeadline", "Строк оприлюднення програми *", { required: true, default: "2026-09-01", collapsed: true }),
+      date("analysisDeadline", "Строк аналізу виконання програми *", { required: true, default: "2027-06-28", collapsed: true }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const redistributionRows = (data.hourRedistribution || [])
+        .filter((row) => clean(row.className) || clean(row.subject) || clean(row.hours))
+        .map((row) => [clean(row.className), clean(row.subject), clean(row.hours)]);
+      const points = [
+        orderDirective("", `Ввести в дію з ${formatDateUa(data.effectiveDate)} ${clean(data.programName)}.`),
+        orderDirective("", `Ввести в дію річні навчальні плани для ${clean(data.classRange)} класів на ${clean(data.schoolYear)} навчальний рік.`),
+      ];
+      if (redistributionRows.length) points.push(orderDirective("", "Затвердити перерозподіл навчальних годин між освітніми галузями та навчальними предметами згідно з таблицею у розпорядчій частині цього наказу."));
+      points.push(
+        orderDirective(data.teachers, "використовувати затверджену освітню програму й річні навчальні плани під час організації освітньої діяльності.", 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+        orderDirective(data.teachers, "підготувати календарно-тематичні плани відповідно до освітньої програми та річних навчальних планів.", 1, deadlineDate(data.planningDeadline)),
+        orderDirective(data.deputy, "оприлюднити освітню програму та річні навчальні плани на офіційному вебсайті закладу.", 0, deadlineDate(data.publicationDeadline)),
+        orderDirective(data.deputy, "проаналізувати стан виконання освітньої програми й підготувати управлінські висновки за результатами навчального року.", 1, deadlineDate(data.analysisDeadline)),
+        orderDirective("Класним керівникам", "оформити класні журнали та розподіл сторінок навчальних предметів відповідно до затверджених навчальних планів.", 0, deadlineDate(data.planningDeadline)),
+      );
+      const order = finish(`Про введення в дію освітньої програми та річних навчальних планів на ${clean(data.schoolYear)} навчальний рік`,
+        withBasis(`На підставі рішення педагогічної ради від ${formatDateUa(data.councilDate)}, протокол № ${clean(data.protocolNumber)}, та з метою реалізації права на освіту, забезпечення її якості й належної організації освітнього процесу`, data.basis),
+        points, data);
+      return {
+        ...order,
+        bodyTables: redistributionRows.length ? [{
+          title: "Перерозподіл навчальних годин",
+          columns: ["Клас", "Предмет / інтегрований курс", "Кількість годин"],
+          rows: redistributionRows,
+          afterDirective: 3,
+        }] : [],
+      };
+    },
+  }),
+  template({
+    id: "new-school-year-preparation",
+    category: "Початок року",
+    months: ["05", "06", "07", "08"],
+    title: "Про підготовку закладу до нового навчального року",
+    description: "Робоча група, план готовності приміщень та укриття, пожежна й санітарна безпека, медичні огляди та комісійне обстеження.",
+    tags: ["підготовка до навчального року", "готовність закладу", "робоча група", "акт готовності", "укриття", "ремонт"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "law-labor-protection-2694", "code-civil-protection-5403", "mon-fire-schools-974", "mon-safety-1669"],
+    fields: [
+      text("schoolYear", "Новий навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      repeatable("workingGroup", "Склад робочої групи за посадами *", [
+        text("role", "Роль у групі *", { required: true, maxlength: 100, placeholder: "Керівник групи" }),
+        text("position", "Посада *", { required: true, maxlength: 220, placeholder: "Директор" }),
+      ], {
+        required: true,
+        maxItems: 30,
+        defaultItems: [
+          { role: "Керівник групи", position: "директор" },
+          { role: "Член групи", position: "завідуючий господарством" },
+          { role: "Член групи", position: "сестра медична" },
+          { role: "Член групи", position: "робітник з комплексного обслуговування будівель" },
+        ],
+      }),
+      text("facilitiesOfficer", "Господарська підготовка (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220 }),
+      text("medicalOfficer", "Медичні та санітарні питання (посада) *", { required: true, default: "сестрі медичній", maxlength: 220 }),
+      text("safetyOfficer", "Пожежна безпека й укриття (посада) *", { required: true, default: "відповідальному за пожежну безпеку та функціонування укриття", maxlength: 220 }),
+      date("readinessDeadline", "Строк основних заходів готовності *", { required: true, default: "2026-08-20" }),
+      date("healthDeadline", "Строк медичної перевірки *", { required: true, default: "2026-09-01" }),
+      text("inspectionSchedule", "Строк комісійного обстеження *", { required: true, default: "Згідно із затвердженим графіком", maxlength: 180 }),
+      repeatable("extraPlanItems", "Додаткові заходи місцевого плану", [
+        textarea("action", "Захід *", { required: true, maxlength: 1200 }),
+        text("deadline", "Строк *", { required: true, maxlength: 120 }),
+        text("responsible", "Відповідальний за посадою *", { required: true, maxlength: 220 }),
+      ], { maxItems: 100 }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const planRows = [
+        ["1", "Обстежити приміщення, інженерні комунікації, обладнання, спортивні споруди та територію; зафіксувати недоліки й організувати їх усунення.", `До ${formatDateUa(data.readinessDeadline)}`, clean(data.facilitiesOfficer)],
+        ["2", "Перевірити готовність укриття, евакуаційних шляхів, покажчиків руху та доступність маршрутів для осіб з особливими освітніми потребами.", `До ${formatDateUa(data.readinessDeadline)}`, clean(data.safetyOfficer)],
+        ["3", "Перевірити наявність, доступність і належний стан первинних засобів пожежогасіння та документації з пожежної безпеки.", `До ${formatDateUa(data.readinessDeadline)}`, clean(data.safetyOfficer)],
+        ["4", "Перевірити санітарний стан, питний і температурний режими, організацію медичного обслуговування та відомості про обов’язкові медичні огляди.", `До ${formatDateUa(data.healthDeadline)}`, clean(data.medicalOfficer)],
+        ["5", "Підготувати акти обстеження, акти-дозволи та інші документи, необхідні для підтвердження готовності закладу до нового навчального року.", `До ${formatDateUa(data.readinessDeadline)}`, "Робоча група"],
+        ["6", "Забезпечити проведення комісійного обстеження готовності закладу та укриття.", clean(data.inspectionSchedule), "Керівник робочої групи"],
+      ];
+      (data.extraPlanItems || []).filter((row) => clean(row.action) || clean(row.deadline) || clean(row.responsible)).forEach((row) => {
+        planRows.push([String(planRows.length + 1), clean(row.action), clean(row.deadline), clean(row.responsible)]);
+      });
+      const order = finish(`Про підготовку закладу до нового ${clean(data.schoolYear)} навчального року`,
+        withBasis(`З метою своєчасної підготовки закладу, створення безпечних і належних умов для організації освітнього процесу у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        [
+          orderDirective("", "Створити робочу групу з підготовки закладу до нового навчального року у складі згідно з додатком 1."),
+          orderDirective("", `Затвердити План заходів щодо підготовки закладу до ${clean(data.schoolYear)} навчального року (додаток 2).`),
+          orderDirective("Робочій групі", "забезпечити виконання затвердженого Плану заходів.", 0, deadlineDate(data.readinessDeadline)),
+          orderDirective("Керівнику робочої групи", "забезпечити доступ уповноважених представників до приміщень і документів під час комісійного обстеження.", 0, deadlinePreset(data.inspectionSchedule)),
+          orderDirective(data.medicalOfficer, "перевірити санітарні умови, організацію медичного обслуговування та проходження обов’язкових медичних оглядів працівниками.", 0, deadlineDate(data.healthDeadline)),
+          orderDirective(data.safetyOfficer, "забезпечити готовність укриття, евакуаційних шляхів і первинних засобів пожежогасіння.", 0, deadlineDate(data.readinessDeadline)),
+        ], data);
+      return {
+        ...order,
+        attachments: [{
+          kind: "approved",
+          title: "Склад робочої групи з підготовки закладу до нового навчального року",
+          columns: ["№ з/п", "Роль у групі", "Посада"],
+          rows: (data.workingGroup || []).map((row, index) => [String(index + 1), clean(row.role), clean(row.position)]),
+        }, {
+          kind: "approved",
+          title: `План заходів щодо підготовки закладу до ${clean(data.schoolYear)} навчального року`,
+          columns: ["№ з/п", "Захід", "Строк", "Відповідальний"],
+          rows: planRows,
+        }],
+      };
+    },
+  }),
+  template({
+    id: "class-network-approval",
+    category: "Початок року",
+    months: ["08", "09"],
+    title: "Про затвердження мережі класів у навчальному році",
+    description: "Мережа класів і кількість учнів, індивідуальні форми навчання, поділ на групи та інклюзивні класи. Дані використовуються для міжнаказової перевірки безпекових маршрутів.",
+    tags: ["мережа класів", "кількість учнів", "контингент", "поділ на групи", "інклюзивні класи", "екстернат"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "cmu-child-records-684", "mon-enrollment-367"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      date("effectiveDate", "Дата затвердження мережі *", { required: true, default: "2026-09-01" }),
+      repeatable("classes", "Класи та кількість учнів *", [
+        text("className", "Клас *", { required: true, maxlength: 30, placeholder: "1 клас / 1-А клас" }),
+        number("students", "Кількість учнів *", { required: true, min: 0, max: 60 }),
+        text("features", "Особливості", { maxlength: 180, placeholder: "Наприклад: інклюзивний" }),
+      ], { required: true, minItems: 1, maxItems: 200 }),
+      repeatable("individualStudents", "Учні на індивідуальних формах", [
+        text("className", "Клас *", { required: true, maxlength: 30 }),
+        text("form", "Форма здобуття освіти *", { required: true, maxlength: 180, placeholder: "Екстернатна / сімейна / педагогічний патронаж" }),
+        number("students", "Кількість учнів *", { required: true, min: 0, max: 60 }),
+      ], { maxItems: 100 }),
+      repeatable("classGroups", "Поділ класів на групи", [
+        text("className", "Клас *", { required: true, maxlength: 30 }),
+        text("subject", "Предмет *", { required: true, maxlength: 220 }),
+        number("groups", "Кількість груп *", { required: true, min: 1, max: 10 }),
+      ], { maxItems: 100 }),
+      text("recordsResponsible", "Хто оновлює облікові документи (посада) *", { required: true, default: "відповідальному за ведення обліку здобувачів освіти", maxlength: 220 }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const classRows = (data.classes || []).map((row) => [clean(row.className), clean(row.students), clean(row.features) || "—"]);
+      const individualRows = (data.individualStudents || []).filter((row) => clean(row.className) || clean(row.form) || clean(row.students)).map((row) => [clean(row.className), clean(row.form), clean(row.students)]);
+      const groupRows = (data.classGroups || []).filter((row) => clean(row.className) || clean(row.subject) || clean(row.groups)).map((row) => [clean(row.className), clean(row.subject), clean(row.groups)]);
+      const points = [
+        orderDirective("", `Затвердити з ${formatDateUa(data.effectiveDate)} мережу класів закладу на ${clean(data.schoolYear)} навчальний рік згідно з таблицею 1.`),
+      ];
+      if (individualRows.length) points.push(orderDirective("", "Затвердити кількість здобувачів освіти, які навчаються за індивідуальними формами, згідно з таблицею 2."));
+      if (groupRows.length) points.push(orderDirective("", `Затвердити поділ класів на групи під час вивчення окремих навчальних предметів згідно з таблицею ${individualRows.length ? "3" : "2"}.`));
+      points.push(
+        orderDirective(data.recordsResponsible, "внести зміни до алфавітної книги та інших облікових документів відповідно до затвердженої мережі.", 0, deadlineDate(data.effectiveDate)),
+        orderDirective("Класним керівникам", "оформити класні журнали відповідно до фактичної мережі класів.", 0, deadlinePreset(`Із ${formatDateUa(data.effectiveDate)}`)),
+      );
+      const bodyTables = [{
+        title: "Таблиця 1. Мережа класів",
+        columns: ["Клас", "Кількість учнів", "Особливості"],
+        rows: classRows,
+        afterDirective: 1,
+      }];
+      if (individualRows.length) bodyTables.push({
+        title: "Таблиця 2. Індивідуальні форми здобуття освіти",
+        columns: ["Клас", "Форма здобуття освіти", "Кількість учнів"],
+        rows: individualRows,
+        afterDirective: 2,
+      });
+      if (groupRows.length) bodyTables.push({
+        title: `Таблиця ${individualRows.length ? "3" : "2"}. Поділ класів на групи`,
+        columns: ["Клас", "Навчальний предмет", "Кількість груп"],
+        rows: groupRows,
+        afterDirective: 1 + Number(individualRows.length > 0) + Number(groupRows.length > 0),
+      });
+      const order = finish(`Про затвердження мережі класів у ${clean(data.schoolYear)} навчальному році`,
+        withBasis(`З метою належної організації освітнього процесу, ведення достовірного обліку здобувачів освіти та забезпечення доступності освіти у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        points, data);
+      return { ...order, bodyTables };
+    },
+  }),
+  template({
+    id: "pedagogical-council-decisions",
+    category: "Початок року",
+    months: ["08", "09", "01", "03", "05", "06"],
+    frequency: "Після засідання педагогічної ради",
+    title: "Про введення в дію рішень педагогічної ради",
+    description: "Одне або кілька рішень педагогічної ради з конкретними виконавцями, діями та строками — без незаповнених «рибок». Новий наказ можна створювати після кожного засідання.",
+    tags: ["педагогічна рада", "рішення педради", "протокол", "введення в дію"],
+    needsVerification: true,
+    legalBasisIds: ["law-secondary-463"],
+    fields: [
+      date("councilDate", "Дата засідання педагогічної ради *", { required: true, default: "2026-08-28" }),
+      text("protocolNumber", "Номер протоколу *", { required: true, default: "1", maxlength: 30 }),
+      repeatable("decisions", "Рішення педагогічної ради *", [
+        text("title", "Назва питання / рішення *", { required: true, maxlength: 500, placeholder: "Про організацію освітнього процесу…" }),
+        text("executor", "Виконавець за посадою *", { required: true, maxlength: 220, placeholder: "Учителям закладу" }),
+        textarea("action", "Що потрібно виконати *", { required: true, maxlength: 1600 }),
+        select("deadlineKind", "Тип строку", [
+          { value: "preset", label: "Типовий / текстовий строк" },
+          { value: "date", label: "Конкретна дата РРРР-ММ-ДД" },
+        ], { default: "preset" }),
+        text("deadlineValue", "Строк *", { required: true, default: "Постійно", maxlength: 120 }),
+      ], { required: true, minItems: 1, maxItems: 50 }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const points = [];
+      (data.decisions || []).forEach((decision) => {
+        points.push(orderDirective("", `Ввести в дію рішення педагогічної ради від ${formatDateUa(data.councilDate)}, протокол № ${clean(data.protocolNumber)}, «${clean(decision.title).replace(/[«»"]/gu, "")}».`));
+        points.push(orderDirective(decision.executor, decision.action, 1, clean(decision.deadlineValue) ? {
+          kind: decision.deadlineKind === "date" ? "date" : "preset",
+          value: clean(decision.deadlineValue),
+        } : null));
+      });
+      return finish(this.title,
+        withBasis(`На підставі протоколу засідання педагогічної ради від ${formatDateUa(data.councilDate)} № ${clean(data.protocolNumber)} та з метою забезпечення виконання ухвалених рішень`, data.basis),
+        points, data);
+    },
+  }),
+  template({
+    id: "sports-facilities-readiness",
+    category: "Адміністративно-господарські",
+    months: ["08", "09"],
+    title: "Про підготовку спортивних споруд до використання у навчальному році",
+    description: "Комісійна перевірка спортзалу, майданчиків та інвентарю, акт готовності, технічне обстеження, журнали занять і усунення недоліків.",
+    tags: ["спортивні споруди", "спортзал", "спортивний майданчик", "акт готовності", "фізична культура"],
+    recordSeries: "Адміністративно-господарські питання",
+    needsVerification: true,
+    legalBasisIds: ["law-labor-protection-2694", "mon-safety-1669", "mon-physical-safety-521"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      repeatable("commission", "Склад комісії за посадами *", [
+        text("role", "Роль *", { required: true, maxlength: 100 }),
+        text("position", "Посада *", { required: true, maxlength: 220 }),
+      ], {
+        required: true,
+        maxItems: 20,
+        defaultItems: [
+          { role: "Голова комісії", position: "заступник директора" },
+          { role: "Член комісії", position: "учитель фізичної культури" },
+          { role: "Член комісії", position: "завідуючий господарством" },
+        ],
+      }),
+      repeatable("facilities", "Спортивні споруди та об’єкти *", [
+        text("name", "Назва об’єкта *", { required: true, maxlength: 220, placeholder: "Спортивний зал / майданчик" }),
+        text("location", "Розташування", { maxlength: 220 }),
+      ], { required: true, minItems: 1, maxItems: 50 }),
+      text("physicalTeacher", "Відповідальний учитель (посада) *", { required: true, default: "учителю фізичної культури", maxlength: 220 }),
+      text("facilitiesOfficer", "Господарська підготовка (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220 }),
+      date("inspectionDeadline", "Строк комісійної перевірки й акта *", { required: true, default: "2026-08-29" }),
+      date("documentsDeadline", "Строк підготовки журналів і розкладів *", { required: true, default: "2026-09-01" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const facilityNames = (data.facilities || []).map((item) => clean(item.name)).filter(Boolean).join(", ");
+      const order = finish(`Про підготовку спортивних споруд до використання у ${clean(data.schoolYear)} навчальному році`,
+        withBasis(`З метою своєчасної та якісної підготовки спортивних споруд, безпечного проведення занять і належного утримання спортивного обладнання у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        [
+          orderDirective("", "Створити комісію з перевірки готовності спортивних споруд у складі згідно з додатком 1."),
+          orderDirective("Комісії", `провести перевірку готовності таких об’єктів: ${facilityNames}; перевірити надійність кріплень, стійкість конструкцій, справність інвентарю та відповідність вимогам безпеки.`),
+          orderDirective("Комісії", "за результатами перевірки скласти акт готовності спортивних споруд і подати його директору на затвердження.", 1, deadlineDate(data.inspectionDeadline)),
+          orderDirective(data.physicalTeacher, "підготувати спортивні споруди та обладнання до проведення занять і спортивних заходів.", 0, deadlineDate(data.inspectionDeadline)),
+          orderDirective(data.physicalTeacher, "забезпечити ведення необхідних журналів обліку та наявність затверджених розкладів роботи секцій і спортивних груп.", 1, deadlineDate(data.documentsDeadline)),
+          orderDirective(data.facilitiesOfficer, "організувати усунення виявлених недоліків, ремонт і збереження спортивного обладнання, забезпечення засобами пожежогасіння та домедичної допомоги.", 0, deadlineDate(data.documentsDeadline)),
+          orderDirective("Працівникам закладу", "не допускати використання спортивних споруд та обладнання, безпечність яких не підтверджена або щодо яких виявлено несправності.", 0, deadlinePreset("Постійно")),
+        ], data);
+      return {
+        ...order,
+        attachments: [{
+          kind: "approved",
+          title: "Склад комісії з перевірки готовності спортивних споруд",
+          columns: ["№ з/п", "Роль", "Посада"],
+          rows: (data.commission || []).map((row, index) => [String(index + 1), clean(row.role), clean(row.position)]),
+        }],
+      };
+    },
+  }),
+  template({
+    id: "electrical-facilities-responsible",
+    category: "Адміністративно-господарські",
+    months: ["08", "09"],
+    title: "Про призначення відповідального за електрогосподарство",
+    description: "Безпечна експлуатація електроустановок, технічне обслуговування, огляди мереж, інструктажі, облік електроенергії та дії працівників у разі несправності.",
+    tags: ["електрогосподарство", "електробезпека", "електроустановки", "відповідальний", "заземлення"],
+    recordSeries: "Адміністративно-господарські питання",
+    needsVerification: true,
+    legalBasisIds: ["law-labor-protection-2694", "energy-operation-258", "electrical-safety-4", "mvs-fire-rules-1417"],
+    fields: [
+      text("responsible", "Відповідальний за електрогосподарство (посада або ПІБ) *", { required: true, maxlength: 220 }),
+      text("qualification", "Підтверджена кваліфікація / група з електробезпеки *", { required: true, maxlength: 300, placeholder: "Група, протокол перевірки знань, строк дії" }),
+      date("maintenanceDeadline", "Строк первинної перевірки й плану обслуговування *", { required: true, default: "2026-08-20" }),
+      text("meterReportingDeadline", "Строк подання показників електроенергії *", { required: true, default: "Щомісяця до 5 числа", maxlength: 120 }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      return finish(this.title,
+        withBasis("З метою забезпечення справного стану й безпечної експлуатації електроустановок, запобігання електротравматизму та належного утримання електрогосподарства закладу", data.basis),
+        [
+          orderDirective("", `Призначити відповідальним за справний стан і безпечну експлуатацію електрогосподарства: ${clean(data.responsible)}. Підстава кваліфікації: ${clean(data.qualification)}.`),
+          orderDirective(data.responsible, "забезпечувати надійну, безпечну та раціональну експлуатацію електроустановок і електрообладнання відповідно до затвердженої експлуатаційної документації."),
+          orderDirective(data.responsible, "організувати технічне обслуговування, планово-попереджувальні ремонти, профілактичні вимірювання та випробування.", 1, deadlineDate(data.maintenanceDeadline)),
+          orderDirective(data.responsible, "систематично контролювати стан електромереж, заземлення, електрощитів, вимикачів, розеток, освітлювальних приладів та аварійного живлення.", 1, deadlinePreset("Постійно")),
+          orderDirective(data.responsible, "проводити передбачені інструктажі з електробезпеки та реєструвати їх у відповідних журналах.", 1, deadlinePreset("У встановлені строки та за потреби")),
+          orderDirective(data.responsible, "подавати показники використаної електроенергії до визначеного структурного підрозділу.", 1, deadlinePreset(data.meterReportingDeadline)),
+          orderDirective("Працівникам закладу", "не використовувати несправні, пошкоджені або саморобні електроприлади, подовжувачі, розетки та інше електрообладнання.", 0, deadlinePreset("Постійно")),
+          orderDirective("Працівникам закладу", "після завершення роботи вимикати обладнання, яке не повинно працювати цілодобово; у разі іскріння, запаху горілої ізоляції, нагрівання або іншої несправності припинити використання та повідомити відповідального.", 1, deadlinePreset("Негайно")),
+        ], data);
+    },
+  }),
+  template({
+    id: "room-managers",
+    category: "Кадрові",
+    months: ["08", "09"],
+    title: "Про призначення завідувачів кабінетів, майстерень і спортивних залів",
+    description: "Призначення відповідальних за приміщення із доплатами, підготовка інструкцій, обладнання, паспортів кабінетів, інвентаризація та технічний контроль.",
+    tags: ["завідувач кабінету", "майстерня", "спортивний зал", "доплата", "інвентаризація"],
+    recordSeries: "Кадрові питання",
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-labor-protection-2694", "cmu-education-supplements-1391", "mon-safety-1669"],
+    fields: [
+      repeatable("assignments", "Відповідальні за приміщення *", [
+        select("type", "Тип приміщення *", [
+          { value: "Навчальний кабінет", label: "Навчальний кабінет" },
+          { value: "Майстерня", label: "Майстерня" },
+          { value: "Спортивний зал", label: "Спортивний зал" },
+          { value: "Інше приміщення", label: "Інше" },
+        ], { required: true, default: "Навчальний кабінет" }),
+        text("room", "Назва / номер приміщення *", { required: true, maxlength: 180 }),
+        person("person", "Педагогічний працівник *", { required: true, maxlength: 220 }),
+        text("supplement", "Доплата", { maxlength: 80, placeholder: "Розмір або посилання на тарифікацію" }),
+      ], { required: true, minItems: 1, maxItems: 100 }),
+      text("facilitiesOfficer", "Господарський контроль (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220 }),
+      date("readinessDeadline", "Строк перевірки готовності приміщень *", { required: true, default: "2026-08-20" }),
+      date("inventoryDeadline", "Строк інвентаризації *", { required: true, default: "2026-10-15" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(this.title,
+        withBasis("З метою створення безпечного освітнього середовища, збереження обладнання та визначення відповідальних за навчальні кабінети й спеціалізовані приміщення", data.basis),
+        [
+          orderDirective("", "Призначити завідувачів кабінетів, майстерень, спортивних залів та встановити доплати згідно з таблицею у розпорядчій частині цього наказу."),
+          orderDirective("Завідувачам кабінетів і спеціалізованих приміщень", "забезпечити наявність актуальних інструкцій з охорони праці та безпеки життєдіяльності, правил поведінки й схеми евакуації."),
+          orderDirective("Завідувачам кабінетів і спеціалізованих приміщень", "до початку занять перевірити справність обладнання, інструментів, інвентарю та аптечок домедичної допомоги.", 1, deadlineDate(data.readinessDeadline)),
+          orderDirective("Завідувачам кабінетів і спеціалізованих приміщень", "не допускати до експлуатації несправне, пошкоджене або саморобне обладнання.", 1, deadlinePreset("Постійно")),
+          orderDirective("Завідувачам кабінетів і спеціалізованих приміщень", "актуалізувати паспорт і план розвитку приміщення та провести інвентаризацію матеріальних цінностей.", 1, deadlineDate(data.inventoryDeadline)),
+          orderDirective(data.facilitiesOfficer, "контролювати технічний стан освітлення, вентиляції, опалення, електромереж і забезпечення приміщень первинними засобами пожежогасіння.", 0, deadlinePreset("Постійно")),
+        ], data);
+      return {
+        ...order,
+        bodyTables: [{
+          title: "Закріплення кабінетів і спеціалізованих приміщень",
+          columns: ["№ з/п", "Тип", "Кабінет / приміщення", "Відповідальний", "Доплата"],
+          rows: (data.assignments || []).map((row, index) => [String(index + 1), clean(row.type), clean(row.room), clean(row.person), clean(row.supplement) || "Відповідно до тарифікації"]),
+          afterDirective: 1,
+        }],
+      };
+    },
+  }),
+  template({
+    id: "school-readiness-results",
+    category: "Початок року",
+    months: ["08", "09"],
+    title: "Про результати підготовки закладу до нового навчального року",
+    description: "Фіксація результатів комісійного обстеження без довгої ручної преамбули: укриття, пожежна й електрична безпека, санітарний стан, територія, опалення та невиконані заходи.",
+    tags: ["результати готовності", "акт готовності", "обстеження закладу", "опалювальний сезон", "недоліки"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-labor-protection-2694", "code-civil-protection-5403", "mon-fire-schools-974", "mon-safety-1669"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      date("inspectionDate", "Дата завершення обстеження *", { required: true, default: "2026-08-28" }),
+      text("inspectionBasis", "Акт / документ про результати обстеження *", { required: true, maxlength: 500, placeholder: "Акт готовності від … № …" }),
+      select("overallAssessment", "Загальна оцінка готовності *", [
+        { value: "задовільною", label: "Задовільна" },
+        { value: "умовно задовільною", label: "Умовно задовільна" },
+        { value: "незадовільною", label: "Незадовільна" },
+      ], { required: true, default: "задовільною" }),
+      repeatable("areas", "Результати за напрямами *", [
+        text("area", "Напрям *", { required: true, maxlength: 180 }),
+        select("status", "Стан *", [
+          { value: "Готово", label: "Готово" },
+          { value: "Потребує усунення недоліків", label: "Є недоліки" },
+          { value: "Не готово", label: "Не готово" },
+        ], { required: true, default: "Готово" }),
+        textarea("finding", "Висновок / виявлені недоліки *", { required: true, maxlength: 1200 }),
+        text("responsible", "Відповідальний за подальші дії *", { required: true, maxlength: 220 }),
+        text("deadline", "Строк *", { required: true, maxlength: 120 }),
+      ], {
+        required: true,
+        maxItems: 50,
+        defaultItems: [
+          { area: "Укриття та цивільний захист", status: "Готово", finding: "Готовність підтверджено актом обстеження", responsible: "відповідальний за укриття", deadline: "Постійно" },
+          { area: "Пожежна безпека", status: "Готово", finding: "Шляхи евакуації та первинні засоби пожежогасіння перевірено", responsible: "відповідальний за пожежну безпеку", deadline: "Постійно" },
+          { area: "Електрогосподарство", status: "Готово", finding: "Стан електромереж і захисних пристроїв перевірено", responsible: "відповідальний за електрогосподарство", deadline: "Постійно" },
+          { area: "Санітарний і медичний стан", status: "Готово", finding: "Приміщення та медичне забезпечення підготовлено", responsible: "сестра медична", deadline: "Постійно" },
+          { area: "Територія та приміщення", status: "Готово", finding: "Територію, меблі й обладнання підготовлено", responsible: "завідуючий господарством", deadline: "Постійно" },
+        ],
+      }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(`Про результати підготовки закладу до ${clean(data.schoolYear)} навчального року`,
+        withBasis(`За результатами обстеження, завершеного ${formatDateUa(data.inspectionDate)}, відповідно до ${clean(data.inspectionBasis)}, та з метою забезпечення безпечного функціонування закладу`, data.basis),
+        [
+          orderDirective("", `Визнати підготовку закладу до ${clean(data.schoolYear)} навчального року та опалювального сезону ${clean(data.overallAssessment)}.`),
+          orderDirective("Відповідальним за напрями", "підтримувати готовність систем, приміщень і обладнання та виконати подальші заходи, зазначені у таблиці результатів цього наказу."),
+          orderDirective("Колективу закладу", "дотримуватися затверджених алгоритмів дій під час сигналів оповіщення, правил евакуації, пожежної та техногенної безпеки.", 0, deadlinePreset("Постійно")),
+          orderDirective("Колективу закладу", "продовжити роботу зі створення безпечного, доступного й безбар’єрного освітнього середовища.", 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+        ], data);
+      return {
+        ...order,
+        bodyTables: [{
+          title: "Результати готовності за напрямами",
+          columns: ["№ з/п", "Напрям", "Стан", "Висновок / недоліки", "Відповідальний", "Строк"],
+          rows: (data.areas || []).map((row, index) => [String(index + 1), clean(row.area), clean(row.status), clean(row.finding), clean(row.responsible), clean(row.deadline)]),
+          afterDirective: 1,
+        }],
+      };
+    },
+  }),
+  template({
+    id: "shelter-responsible",
+    category: "Безпека",
+    months: ["08", "09"],
+    title: "Про призначення відповідального за утримання та функціонування укриття",
+    description: "Технічний, санітарний і протипожежний стан укриття, системи життєзабезпечення, запаси, виходи, покажчики, журнали, безбар’єрність і медичні аптечки.",
+    tags: ["укриття", "відповідальний за укриття", "захисна споруда", "готовність укриття", "генератор"],
+    needsVerification: true,
+    legalBasisIds: ["code-civil-protection-5403", "mvs-shelter-579"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("responsible", "Відповідальний за укриття (посада або ПІБ) *", { required: true, maxlength: 220 }),
+      number("capacity", "Підтверджена місткість укриття, осіб *", { required: true, min: 1, max: 5000 }),
+      text("capacityBasis", "Документ, що підтверджує місткість *", { required: true, maxlength: 400, placeholder: "Акт оцінки стану готовності від … № …" }),
+      text("medicalOfficer", "Медичний супровід (посада) *", { required: true, default: "сестрі медичній", maxlength: 220 }),
+      date("accessibilityDeadline", "Строк облаштування місць і доступності *", { required: true, default: "2026-09-01" }),
+      date("fuelDeadline", "Строк створення запасу пального (якщо є генератор)", { default: "2026-10-01" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      return finish(this.title,
+        withBasis(`З метою підтримання готовності укриття місткістю ${clean(data.capacity)} осіб, підтвердженої документом: ${clean(data.capacityBasis)}, та забезпечення безпеки учасників освітнього процесу у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        [
+          orderDirective("", `Призначити відповідальним за утримання, стан готовності та функціонування укриття: ${clean(data.responsible)}.`),
+          orderDirective(data.responsible, "забезпечувати належний технічний, санітарний і протипожежний стан приміщень укриття.", 0, deadlinePreset("Постійно")),
+          orderDirective(data.responsible, "контролювати справність вентиляції, основного й аварійного освітлення, водопостачання, каналізації та резервних джерел живлення.", 1, deadlinePreset("Постійно")),
+          orderDirective(data.responsible, "контролювати наявність і поповнення запасів води, засобів гігієни, інструменту та первинних засобів пожежогасіння.", 1, deadlinePreset("Постійно")),
+          orderDirective(data.responsible, "перевіряти доступність входів, аварійних виходів та евакуаційних шляхів; оновлювати покажчики, схеми й правила поведінки.", 1, deadlinePreset("Не рідше одного разу на семестр та після змін")),
+          orderDirective(data.responsible, "вести журнали стану готовності укриття та перевірок резервних джерел живлення.", 1, deadlinePreset("Постійно")),
+          orderDirective(data.responsible, `забезпечити місця для сидіння в межах підтвердженої місткості ${clean(data.capacity)} осіб та доступність для людей з особливими потребами.`, 1, deadlineDate(data.accessibilityDeadline)),
+          orderDirective(data.responsible, "забезпечувати безперешкодний доступ учасників освітнього процесу до укриття під час сигналів оповіщення.", 1, deadlinePreset("Під час кожного сигналу")),
+          orderDirective(data.medicalOfficer, "перевіряти й поповнювати аптечки домедичної допомоги та контролювати стан здоров’я людей під час перебування в укритті.", 0, deadlinePreset("Щомісяця та за потреби")),
+          ...(clean(data.fuelDeadline) ? [orderDirective(data.responsible, "створити й надалі підтримувати безпечний резерв пального для наявних альтернативних джерел живлення відповідно до встановлених вимог.", 0, deadlineDate(data.fuelDeadline))] : []),
+        ], data);
     },
   }),
   template({
     id: "pedagogical-workload",
     category: "Кадрові",
     months: ["08", "09"],
-    title: "Про тарифікацію та розподіл педагогічного навантаження",
-    description: "Для оформлення педагогічного навантаження та введення його в дію на навчальний рік.",
-    tags: ["тарифікація", "навантаження", "педагоги"],
+    title: "Про розподіл педагогічного навантаження на навчальний рік",
+    description: "Таблиця педагогічного навантаження з предметами, класами, спеціальністю та підвищенням кваліфікації; ознайомлення працівників і календарне планування.",
+    tags: ["тарифікація", "педагогічне навантаження", "години", "педагоги", "письмова згода"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "labor-code-322"],
     fields: [
       text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
       date("effectiveDate", "Дата введення в дію *", { required: true, default: "2026-09-01" }),
-      person("responsible", "Відповідальний за оформлення тарифікації", { maxlength: 220 }),
+      repeatable("workloads", "Розподіл педагогічного навантаження *", [
+        person("person", "Педагогічний працівник *", { required: true, maxlength: 220 }),
+        text("speciality", "Спеціальність / кваліфікація *", { required: true, maxlength: 220 }),
+        text("subjects", "Предмети / інтегровані курси *", { required: true, maxlength: 400 }),
+        text("classes", "Класи *", { required: true, maxlength: 160 }),
+        text("professionalDevelopment", "Рік і напрям підвищення кваліфікації", { maxlength: 400 }),
+        text("hours", "Навантаження, годин *", { required: true, maxlength: 40, placeholder: "18 / 18,5" }),
+      ], { required: true, minItems: 1, maxItems: 200 }),
+      text("responsible", "Відповідальний за оформлення тарифікації (посада) *", { required: true, default: "заступнику директора з навчально-виховної роботи", maxlength: 220 }),
+      date("acknowledgementDeadline", "Строк ознайомлення працівників *", { required: true, default: "2026-08-29" }),
+      date("planningDeadline", "Строк календарно-тематичного планування *", { required: true, default: "2026-09-01" }),
       ...baseAdvanced(),
     ],
     build(data) {
       const points = [
-        `Затвердити розподіл педагогічного навантаження на ${clean(data.schoolYear)} навчальний рік та ввести його в дію з ${formatDateUa(data.effectiveDate)}.`,
-        "Під час оформлення тарифікаційних матеріалів врахувати затверджений навчальний план, штатний розпис та фактичний розподіл педагогічної роботи.",
+        orderDirective("", `Розподілити педагогічне навантаження на ${clean(data.schoolYear)} навчальний рік та ввести його в дію з ${formatDateUa(data.effectiveDate)} згідно з таблицею у розпорядчій частині цього наказу.`),
+        orderDirective(data.responsible, "оформити тарифікаційні матеріали з урахуванням освітньої програми, річних навчальних планів, штатного розпису та фактичного розподілу педагогічної роботи."),
+        orderDirective("Педагогічним працівникам", `ознайомитися з установленим педагогічним навантаженням на ${clean(data.schoolYear)} навчальний рік.`, 0, deadlineDate(data.acknowledgementDeadline)),
+        orderDirective("Педагогічним працівникам", "надати письмову згоду у випадках, коли така згода необхідна для встановлення навантаження менше норми на ставку.", 1, deadlinePreset("За потреби")),
+        orderDirective("Педагогічним працівникам", "розробити календарно-тематичне планування відповідно до встановленого навантаження та затверджених навчальних планів.", 1, deadlineDate(data.planningDeadline)),
       ];
-      if (clean(data.responsible)) points.push(`Відповідальним за підготовку та актуалізацію тарифікаційних матеріалів визначити: ${clean(data.responsible)}.`);
-      return finish(this.title, withBasis(`З метою впорядкування педагогічного навантаження у ${clean(data.schoolYear)} навчальному році`, data.basis), points, data);
+      const order = finish(`Про розподіл педагогічного навантаження на ${clean(data.schoolYear)} навчальний рік`,
+        withBasis(`З метою належного розподілу педагогічного навантаження, забезпечення виконання освітньої програми та річних навчальних планів у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        points, data);
+      return {
+        ...order,
+        bodyTables: [{
+          title: "Розподіл педагогічного навантаження",
+          columns: ["№ з/п", "Педагогічний працівник", "Спеціальність / кваліфікація", "Предмети", "Класи", "Підвищення кваліфікації", "Години"],
+          rows: (data.workloads || []).map((row, index) => [String(index + 1), clean(row.person), clean(row.speciality), clean(row.subjects), clean(row.classes), clean(row.professionalDevelopment) || "—", clean(row.hours)]),
+          afterDirective: 1,
+        }],
+      };
     },
   }),
   template({
@@ -224,6 +862,457 @@ export const ORDER_TEMPLATES = [
         ],
         data,
       );
+    },
+  }),
+  template({
+    id: "air-raid-actions",
+    category: "Безпека",
+    months: ["08", "09"],
+    frequency: "Щорічно та після зміни маршруту",
+    title: "Про виконання алгоритму дій учасників освітнього процесу під час сигналу «Повітряна тривога»",
+    description: "Алгоритм оповіщення, супроводу до укриття, обліку людей і повернення після відбою. Формує таблицю маршрутів для кожного класу.",
+    tags: ["повітряна тривога", "укриття", "евакуація", "маршрути", "цивільний захист"],
+    needsVerification: true,
+    legalBasisIds: ["code-civil-protection-5403", "cmu-evacuation-841"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("evacuationResponsible", "Відповідальний за евакуацію (посада) *", { required: true, default: "відповідальному за евакуацію", maxlength: 220 }),
+      text("dutyResponsible", "Хто подає сигнал оповіщення (посада) *", { required: true, default: "черговому працівнику", maxlength: 220 }),
+      text("medicalResponsible", "Медичний супровід (посада)", { default: "сестрі медичній", maxlength: 220 }),
+      text("psychologicalService", "Психологічний супровід (посада)", { default: "працівникам психологічної служби", maxlength: 220 }),
+      date("briefingDeadline", "Строк ознайомлення з алгоритмом *", { required: true, default: "2026-09-01" }),
+      repeatable("classRoutes", "Маршрути класів до укриття *", [
+        text("className", "Клас *", { required: true, maxlength: 20, placeholder: "2-А клас" }),
+        text("route", "Маршрут / вхід *", { required: true, maxlength: 160, placeholder: "Вхід № 3" }),
+        text("shelterPlace", "Місце в укритті *", { required: true, maxlength: 160, placeholder: "Кімната 4" }),
+        number("students", "Планова кількість осіб", { min: 0, max: 99 }),
+      ], { required: true, minItems: 1, maxItems: 100 }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const points = [
+        orderDirective("", "Затвердити та ввести в дію Алгоритм дій учасників освітнього процесу під час сигналу «Повітряна тривога» та сигналу «Відбій повітряної тривоги» (додаток 1)."),
+        orderDirective("Учасникам освітнього процесу", "під час сигналу оповіщення негайно припиняти поточну діяльність, організовано прямувати визначеним маршрутом до укриття та виконувати вказівки відповідальних осіб."),
+        orderDirective("Педагогічним працівникам та асистентам учителів", "організувати супровід здобувачів освіти до визначених місць в укритті, перевірити їх присутність і повідомити відповідального за евакуацію про результат перевірки."),
+        orderDirective("Класним керівникам", "ознайомити здобувачів освіти та їхніх батьків (інших законних представників) з алгоритмом і маршрутами евакуації.", 0, deadlineDate(data.briefingDeadline)),
+        orderDirective("Класним керівникам", "вести оперативний облік здобувачів освіти, які перебувають у закладі.", 1, deadlinePreset("Щоденно")),
+        orderDirective(data.evacuationResponsible, "перевіряти завершення евакуації з приміщень, узагальнювати інформацію про кількість людей в укритті та організовувати повернення лише після офіційного сигналу про відбій."),
+        orderDirective(data.dutyResponsible, "забезпечувати невідкладне доведення сигналу оповіщення до всіх учасників освітнього процесу.", 0, deadlinePreset("Під час кожного сигналу оповіщення")),
+      ];
+      if (clean(data.psychologicalService)) points.push(orderDirective(data.psychologicalService, "забезпечувати психологічну підтримку учасників освітнього процесу під час перебування в укритті.", 0, deadlinePreset("За потреби")));
+      if (clean(data.medicalResponsible)) points.push(orderDirective(data.medicalResponsible, "контролювати стан здоров’я учасників освітнього процесу та надавати домедичну допомогу в межах компетенції.", 0, deadlinePreset("За потреби")));
+      const order = finish(this.title,
+        withBasis(`З метою забезпечення узгоджених і безпечних дій учасників освітнього процесу у ${clean(data.schoolYear)} навчальному році під час сигналів оповіщення`, data.basis),
+        points, data);
+      return {
+        ...order,
+        bodyTables: [{
+          title: "Маршрути переміщення класів до укриття",
+          columns: ["Клас", "Маршрут / вхід", "Місце в укритті", "Планова кількість осіб"],
+          rows: (data.classRoutes || []).map((row) => [clean(row.className), clean(row.route), clean(row.shelterPlace), clean(row.students)]),
+          afterDirective: 1,
+        }],
+        attachments: [{
+          kind: "approved",
+          title: "Алгоритм дій учасників освітнього процесу під час сигналу «Повітряна тривога»",
+          paragraphs: [
+            "1. Після отримання сигналу оповіщення відповідальна особа негайно доводить його до всіх учасників освітнього процесу.",
+            "2. Педагогічні працівники припиняють заняття, організовують рух класів визначеними маршрутами, беруть журнал або актуальний список присутніх і перевіряють приміщення в межах безпечного часу.",
+            "3. В укритті кожен клас займає визначене місце. Педагогічний працівник проводить перекличку та передає результат відповідальному за евакуацію.",
+            "4. Учасники освітнього процесу залишаються в укритті до офіційного сигналу про відбій та виконують вказівки відповідальних осіб.",
+            "5. Повернення до приміщень організовується визначеними маршрутами після оцінки безпечності ситуації відповідальною особою.",
+          ],
+        }],
+      };
+    },
+  }),
+  template({
+    id: "occupational-safety-organization",
+    category: "Безпека",
+    months: ["08", "09"],
+    title: "Про організацію роботи з охорони праці та безпеки життєдіяльності у закладі",
+    description: "Комплексний щорічний наказ: інструктажі, відповідальні за приміщення, документація, профілактика та контроль стану робочих місць.",
+    tags: ["охорона праці", "безпека життєдіяльності", "інструктажі", "відповідальні за кабінети"],
+    needsVerification: true,
+    legalBasisIds: ["law-labor-protection-2694", "mon-safety-1669", "mon-safety-training-304", "mon-accidents-659"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("pedagogicalCoordinator", "Інструктажі педагогічних працівників (посада) *", { required: true, default: "заступнику директора з навчально-виховної роботи", maxlength: 220 }),
+      text("technicalCoordinator", "Інструктажі технічних працівників (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220 }),
+      date("documentsDeadline", "Строк актуалізації документації *", { required: true, default: "2026-08-31" }),
+      date("initialBriefingDeadline", "Строк первинних інструктажів *", { required: true, default: "2026-09-01" }),
+      repeatable("roomResponsibilities", "Відповідальні за кабінети та приміщення *", [
+        text("room", "Кабінет / приміщення *", { required: true, maxlength: 160 }),
+        text("responsible", "Відповідальний за посадою або ПІБ *", { required: true, maxlength: 220 }),
+      ], { required: true, minItems: 1, maxItems: 100 }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(this.title,
+        withBasis(`З метою створення безпечних і нешкідливих умов праці та навчання, запобігання травматизму у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        [
+          orderDirective("", `Організувати у ${clean(data.schoolYear)} навчальному році роботу з охорони праці та безпеки життєдіяльності відповідно до розподілу обов’язків і локальних інструкцій закладу.`),
+          orderDirective(data.pedagogicalCoordinator, "проводити вступні, первинні, повторні, позапланові та цільові інструктажі з педагогічними працівниками у випадках і строки, встановлені законодавством та локальними актами."),
+          orderDirective(data.technicalCoordinator, "проводити належні інструктажі з технічними працівниками та контролювати безпечний стан робочих місць, обладнання і території."),
+          orderDirective("Відповідальним за кабінети та приміщення", "забезпечувати справний і безпечний стан приміщень та обладнання, наявність актуальних інструкцій і своєчасне повідомлення про виявлені ризики."),
+          orderDirective("Відповідальним за організацію роботи з охорони праці", "переглянути локальні інструкції, журнали та інші документи й подати директору пропозиції щодо їх актуалізації.", 0, deadlineDate(data.documentsDeadline)),
+          orderDirective("Класним керівникам", "провести первинні інструктажі зі здобувачами освіти та зробити записи у відповідних журналах.", 0, deadlineDate(data.initialBriefingDeadline)),
+          orderDirective("Працівникам закладу", "негайно повідомляти безпосереднього керівника про небезпечні умови, несправності, травми або інші події, що можуть загрожувати життю і здоров’ю.", 0, deadlinePreset("Постійно")),
+        ], data);
+      return {
+        ...order,
+        attachments: [{
+          kind: "approved",
+          title: "Розподіл відповідальності за кабінети та приміщення",
+          columns: ["№ з/п", "Кабінет / приміщення", "Відповідальний"],
+          rows: (data.roomResponsibilities || []).map((row, index) => [String(index + 1), clean(row.room), clean(row.responsible)]),
+        }],
+      };
+    },
+  }),
+  template({
+    id: "road-traffic-safety",
+    category: "Безпека",
+    months: ["08", "09"],
+    title: "Про організацію роботи із запобігання дорожньо-транспортному травматизму",
+    description: "Робота з учнями й батьками, первинні інструктажі, інформаційні куточки та обстеження прилеглої території.",
+    tags: ["дорожній рух", "БДР", "дорожньо-транспортний травматизм", "безпечний маршрут"],
+    needsVerification: true,
+    legalBasisIds: ["law-road-traffic-3353", "mon-safety-1669", "mon-accidents-659"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("classTeachers", "Виконавець роботи з учнями (посада) *", { required: true, default: "класним керівникам", maxlength: 220 }),
+      text("facilitiesOfficer", "Відповідальний за територію (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220 }),
+      text("organizer", "Відповідальний за загальношкільні заходи (посада)", { default: "педагогу-організатору", maxlength: 220 }),
+      date("briefingDeadline", "Строк первинного інструктажу *", { required: true, default: "2026-09-01" }),
+      date("informationDeadline", "Строк оновлення інформаційних матеріалів *", { required: true, default: "2026-09-05" }),
+      date("territoryAuditDeadline", "Строк обстеження території *", { required: true, default: "2026-08-31" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const points = [
+        orderDirective(data.classTeachers, "організувати системну профілактичну роботу із запобігання дорожньо-транспортному травматизму серед здобувачів освіти."),
+        orderDirective(data.classTeachers, "провести первинні інструктажі з безпеки дорожнього руху та зробити записи у відповідних журналах.", 1, deadlineDate(data.briefingDeadline)),
+        orderDirective(data.classTeachers, "опрацювати з учнями безпечні маршрути до закладу й додому, правила поведінки пішоходів, пасажирів і велосипедистів."),
+        orderDirective(data.classTeachers, "оновити інформаційні матеріали з безпеки дорожнього руху в класах.", 1, deadlineDate(data.informationDeadline)),
+        orderDirective(data.classTeachers, "інформувати батьків (інших законних представників) про необхідність особистого прикладу та контролю безпечної поведінки дітей на дорозі."),
+        orderDirective(data.facilitiesOfficer, "обстежити територію закладу, під’їзні та пішохідні шляхи, зафіксувати виявлені ризики й подати директору пропозиції щодо їх усунення.", 0, deadlineDate(data.territoryAuditDeadline)),
+      ];
+      if (clean(data.organizer)) points.push(orderDirective(data.organizer, "передбачити загальношкільні інформаційно-профілактичні заходи з безпеки дорожнього руху.", 0, deadlinePreset("Упродовж навчального року")));
+      return finish(this.title,
+        withBasis(`З метою запобігання дорожньо-транспортному травматизму та формування навичок безпечної поведінки у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        points, data);
+    },
+  }),
+  template({
+    id: "fire-safety-regime",
+    category: "Безпека",
+    months: ["08", "09"],
+    title: "Про затвердження протипожежного режиму та призначення відповідального за пожежну безпеку",
+    description: "Призначення відповідального, введення локального протипожежного режиму, перевірки шляхів евакуації, навчання та первинні засоби пожежогасіння.",
+    tags: ["протипожежний режим", "пожежна безпека", "вогнегасники", "шляхи евакуації"],
+    recordSeries: "Адміністративно-господарські питання",
+    needsVerification: true,
+    legalBasisIds: ["code-civil-protection-5403", "mvs-fire-rules-1417", "mon-fire-schools-974"],
+    fields: [
+      text("fireResponsible", "Відповідальний за пожежну безпеку (посада або ПІБ) *", { required: true, maxlength: 220 }),
+      date("effectiveDate", "Дата введення режиму в дію *", { required: true, default: "2026-09-01" }),
+      date("briefingDeadline", "Строк ознайомлення працівників *", { required: true, default: "2026-09-01" }),
+      text("evacuationCheckFrequency", "Періодичність огляду шляхів евакуації *", { required: true, default: "Щомісячно", maxlength: 120 }),
+      textarea("localRules", "Додаткові локальні правила", { maxlength: 2000, placeholder: "Особливості закладу: порядок знеструмлення, доступ до воріт, використання генератора тощо" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const regimeParagraphs = [
+        "1. Територію, будівлі, приміщення, евакуаційні шляхи та виходи утримувати в стані, що забезпечує безпечну евакуацію людей і доступ пожежно-рятувальних підрозділів.",
+        "2. Не захаращувати коридори, сходові клітки, проходи, виходи та місця розміщення первинних засобів пожежогасіння.",
+        "3. Електрообладнання експлуатувати відповідно до інструкцій виробника; після завершення роботи вимикати обладнання, яке не має працювати цілодобово.",
+        "4. Вогневі та інші пожежонебезпечні роботи проводити лише у встановленому порядку з визначенням відповідальних і необхідних заходів безпеки.",
+        "5. Первинні засоби пожежогасіння, системи оповіщення та протипожежного захисту утримувати справними, доступними й позначеними.",
+        "6. У разі виявлення пожежі або ознак горіння негайно повідомити за номером 101, увімкнути оповіщення, розпочати евакуацію та діяти відповідно до затвердженої інструкції.",
+      ];
+      if (clean(data.localRules)) regimeParagraphs.push(`7. Локальні особливості: ${normalizeSentence(data.localRules)}.`);
+      const order = finish(this.title,
+        withBasis("З метою встановлення єдиного протипожежного режиму, запобігання пожежам і забезпечення безпечної евакуації учасників освітнього процесу", data.basis),
+        [
+          orderDirective("", `Призначити відповідальним за пожежну безпеку закладу: ${clean(data.fireResponsible)}.`),
+          orderDirective("", `Затвердити Протипожежний режим закладу та ввести його в дію з ${formatDateUa(data.effectiveDate)} (додаток 1).`),
+          orderDirective(data.fireResponsible, "ознайомити працівників із протипожежним режимом і порядком дій у разі пожежі.", 0, deadlineDate(data.briefingDeadline)),
+          orderDirective(data.fireResponsible, "перевіряти стан шляхів евакуації, виходів, знаків безпеки та доступність первинних засобів пожежогасіння.", 0, deadlinePreset(data.evacuationCheckFrequency)),
+          orderDirective(data.fireResponsible, "організовувати навчання, інструктажі та практичне відпрацювання дій працівників відповідно до затверджених планів і вимог законодавства."),
+          orderDirective("Працівникам закладу", "дотримуватися протипожежного режиму та невідкладно повідомляти про виявлені порушення або ознаки пожежі.", 0, deadlinePreset("Постійно")),
+        ], data);
+      return {
+        ...order,
+        attachments: [{ kind: "approved", title: "Протипожежний режим закладу", paragraphs: regimeParagraphs }],
+      };
+    },
+  }),
+  template({
+    id: "evacuation-training",
+    category: "Безпека",
+    months: ["08", "09", "10"],
+    frequency: "За планом підготовки",
+    title: "Про проведення практичного тренування з евакуації учасників освітнього процесу",
+    description: "Дата й координатор тренування, підготовка класів, відпрацювання маршрутів, перевірка спорядження та підбиття підсумків.",
+    tags: ["евакуаційне тренування", "навчальна евакуація", "укриття", "цивільний захист"],
+    needsVerification: true,
+    legalBasisIds: ["code-civil-protection-5403", "cmu-evacuation-841"],
+    fields: [
+      date("trainingDate", "Дата тренування *", { required: true, default: "2026-09-10" }),
+      text("trainingTime", "Час тренування", { default: "10:00", maxlength: 20 }),
+      text("shelter", "Кінцеве місце евакуації / укриття *", { required: true, default: "захисна споруда цивільного захисту закладу", maxlength: 300 }),
+      text("coordinator", "Керівник тренування (посада) *", { required: true, default: "відповідальному за цивільний захист", maxlength: 220 }),
+      text("classTeachers", "Виконавець підготовки класів (посада) *", { required: true, default: "класним керівникам", maxlength: 220 }),
+      date("preparationDeadline", "Строк підготовки учасників *", { required: true, default: "2026-09-09" }),
+      select("includeBackpackPractice", "Відпрацювати комплектацію тривожної валізи", [
+        { value: "yes", label: "Так" },
+        { value: "no", label: "Ні" },
+      ], { default: "yes" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const points = [
+        orderDirective("", `Провести ${formatDateUa(data.trainingDate)}${clean(data.trainingTime) ? ` о ${clean(data.trainingTime)}` : ""} практичне тренування з евакуації учасників освітнього процесу до ${clean(data.shelter)}.`),
+        orderDirective(data.coordinator, "розробити сценарій тренування, перевірити готовність маршрутів і місця евакуації, провести вступний інструктаж відповідальних осіб."),
+        orderDirective(data.classTeachers, "ознайомити здобувачів освіти з метою тренування, порядком оповіщення, маршрутами руху та правилами поведінки під час евакуації.", 0, deadlineDate(data.preparationDeadline)),
+        orderDirective(data.classTeachers, "під час тренування провести облік присутніх, організовано супроводити клас і передати результат переклички керівнику тренування."),
+      ];
+      if (data.includeBackpackPractice !== "no") points.push(orderDirective(data.classTeachers, "відпрацювати з учнями добір необхідних речей для тривожної валізи та використання доступних засобів індивідуального захисту.", 1, deadlineDate(data.preparationDeadline)));
+      points.push(orderDirective(data.coordinator, "після завершення тренування проаналізувати дії учасників, зафіксувати виявлені недоліки та подати директору пропозиції щодо їх усунення.", 0, deadlinePreset("У день проведення тренування")));
+      return finish(this.title,
+        withBasis("З метою практичного відпрацювання організованої та безпечної евакуації, перевірки готовності учасників освітнього процесу до дій за сигналами оповіщення", data.basis),
+        points, data);
+    },
+  }),
+  template({
+    id: "primary-workplace-briefings",
+    category: "Безпека",
+    months: ["08", "09"],
+    frequency: "Щорічно та за потреби",
+    title: "Про проведення первинних інструктажів з охорони праці на робочому місці",
+    description: "Інструктажі працівників за затвердженими інструкціями, перевірка знань, записи в журналах і повідомлення про відсутніх.",
+    tags: ["первинний інструктаж", "охорона праці", "журнал інструктажів", "працівники"],
+    needsVerification: true,
+    legalBasisIds: ["law-labor-protection-2694", "mon-safety-training-304", "mon-safety-1669"],
+    fields: [
+      text("pedagogicalInstructor", "Інструктує педагогічних працівників (посада) *", { required: true, default: "заступнику директора з навчально-виховної роботи", maxlength: 220 }),
+      text("technicalInstructor", "Інструктує технічних працівників (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220 }),
+      date("briefingDeadline", "Строк проведення інструктажів *", { required: true, default: "2026-08-31" }),
+      date("reportDeadline", "Строк повідомлення про відсутніх *", { required: true, default: "2026-09-01" }),
+      textarea("employeeGroups", "Додаткові групи працівників", { maxlength: 1000, placeholder: "За потреби зазначте групи, для яких установлено окремий порядок" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const points = [
+        orderDirective(data.pedagogicalInstructor, "провести первинний інструктаж на робочому місці з педагогічними працівниками за чинними інструкціями з охорони праці.", 0, deadlineDate(data.briefingDeadline)),
+        orderDirective(data.technicalInstructor, "провести первинний інструктаж на робочому місці з технічними та обслуговуючими працівниками за чинними інструкціями з охорони праці.", 0, deadlineDate(data.briefingDeadline)),
+        orderDirective("Особам, які проводять інструктажі", "перевірити засвоєння працівниками вимог безпеки та практичних навичок безпечного виконання робіт."),
+        orderDirective("Особам, які проводять інструктажі", "зареєструвати проведення інструктажів у відповідних журналах із підписами особи, яка проводила інструктаж, та працівника."),
+        orderDirective("Особам, які проводять інструктажі", "подати директору інформацію про працівників, які не пройшли інструктаж у визначений строк.", 0, deadlineDate(data.reportDeadline)),
+      ];
+      if (clean(data.employeeGroups)) points.push(orderDirective("Відповідальним за інструктажі", `урахувати особливості таких груп працівників: ${normalizeSentence(data.employeeGroups)}.`));
+      return finish(this.title,
+        withBasis("З метою забезпечення безпечного виконання працівниками посадових обов’язків і належного документування навчання з питань охорони праці", data.basis),
+        points, data);
+    },
+  }),
+  template({
+    id: "inclusive-education-organization",
+    category: "Освітній процес",
+    months: ["08", "09"],
+    title: "Про організацію інклюзивного навчання",
+    description: "Створення інклюзивного класу на підставі заяви та висновку ІРЦ, команда супроводу, ІПР, корекційно-розвиткові заняття, допоміжні засоби й доступність.",
+    tags: ["інклюзивне навчання", "ООП", "ІРЦ", "команда супроводу", "ІПР", "асистент учителя"],
+    preparedSummary: "Типові строки та відповідальний за доступність уже заповнені — перевірити за потреби",
+    recordSeries: "Основна діяльність",
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "cmu-inclusive-957", "mon-support-team-609", "cmu-assistive-tools-1289", "mon-assistive-list-414"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("className", "Інклюзивний клас *", { required: true, maxlength: 30, placeholder: "4 клас / 4-А клас" }),
+      person("student", "Учень / учениця *", { required: true, maxlength: 220, help: "Це персональні дані. Вони зберігаються лише локально у вашому наказі." }),
+      select("supportLevel", "Рівень підтримки *", [
+        { value: "першого", label: "Перший" },
+        { value: "другого", label: "Другий" },
+        { value: "третього", label: "Третій" },
+        { value: "четвертого", label: "Четвертий" },
+        { value: "п’ятого", label: "П’ятий" },
+      ], { required: true, default: "другого" }),
+      text("parentApplication", "Заява одного з батьків / представника *", { required: true, maxlength: 500, placeholder: "Заява від 20.08.2026" }),
+      text("ircConclusion", "Висновок ІРЦ *", { required: true, maxlength: 500, placeholder: "Висновок про комплексну оцінку від … № …" }),
+      text("councilDecision", "Рішення педагогічної ради *", { required: true, maxlength: 500, placeholder: "Протокол від … № …" }),
+      text("teacher", "Учитель класу (посада або ПІБ) *", { required: true, maxlength: 220 }),
+      text("assistant", "Асистент учителя (посада або ПІБ) *", { required: true, maxlength: 220 }),
+      repeatable("supportTeam", "Команда психолого-педагогічного супроводу *", [
+        select("role", "Роль *", [
+          { value: "Голова команди", label: "Голова" },
+          { value: "Секретар команди", label: "Секретар" },
+          { value: "Член команди", label: "Член команди" },
+        ], { required: true, default: "Член команди" }),
+        text("member", "Посада / ПІБ *", { required: true, maxlength: 220 }),
+      ], {
+        required: true,
+        minItems: 3,
+        maxItems: 30,
+        defaultItems: [
+          { role: "Голова команди", member: "практичний психолог" },
+          { role: "Член команди", member: "учитель класу" },
+          { role: "Член команди", member: "асистент учителя" },
+          { role: "Член команди", member: "один із батьків (інший законний представник)" },
+        ],
+      }),
+      text("facilitiesOfficer", "Відповідальний за доступність (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220, collapsed: true }),
+      date("iprDeadline", "Строк розроблення ІПР *", { required: true, default: "2026-09-10", collapsed: true }),
+      date("scheduleDeadline", "Строк розкладу корекційно-розвиткових занять *", { required: true, default: "2026-09-04", collapsed: true }),
+      date("systemDeadline", "Строк внесення відомостей до системи ІРЦ *", { required: true, default: "2026-09-20", collapsed: true }),
+      date("accessibilityDeadline", "Строк первинної перевірки доступності *", { required: true, default: "2026-09-01", collapsed: true }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(`Про організацію інклюзивного навчання у ${clean(data.className)} у ${clean(data.schoolYear)} навчальному році`,
+        withBasis(`На підставі ${clean(data.parentApplication)}, ${clean(data.ircConclusion)}, ${clean(data.councilDecision)} та з метою реалізації права ${clean(data.student)} на освіту з урахуванням визначеного ${clean(data.supportLevel)} рівня підтримки`, data.basis),
+        [
+          orderDirective("", `Організувати у ${clean(data.schoolYear)} навчальному році інклюзивне навчання ${clean(data.student)} у ${clean(data.className)} з урахуванням визначеного ${clean(data.supportLevel)} рівня підтримки.`),
+          orderDirective("", "Затвердити склад команди психолого-педагогічного супроводу згідно з додатком 1."),
+          orderDirective(data.teacher, "організовувати освітню діяльність, спостереження за індивідуальними освітніми потребами та оцінювання результатів навчання з урахуванням ІПР.", 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+          orderDirective(data.assistant, "забезпечувати підтримку учня під час освітнього процесу, брати участь у розробленні й виконанні ІПР та взаємодіяти з учителем і батьками.", 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+          orderDirective("Команді психолого-педагогічного супроводу", "розробити індивідуальну програму розвитку на підставі висновку ІРЦ, визначити необхідні адаптації, модифікації, допоміжні засоби та способи моніторингу результатів.", 0, deadlineDate(data.iprDeadline)),
+          orderDirective("Голові команди супроводу", "скласти й погодити з батьками (іншими законними представниками) розклад корекційно-розвиткових та психолого-педагогічних занять.", 0, deadlineDate(data.scheduleDeadline)),
+          orderDirective("Голові команди супроводу", "забезпечити внесення передбачених відомостей та ІПР до автоматизованої системи інклюзивно-ресурсних центрів із дотриманням вимог захисту персональних даних.", 1, deadlineDate(data.systemDeadline)),
+          orderDirective("Педагогічним працівникам і працівникам психологічної служби", "забезпечувати психолого-педагогічний супровід, співпрацю з родиною та запобігання дискримінації або негативному ставленню в учнівському колективі.", 0, deadlinePreset("Постійно")),
+          orderDirective(data.facilitiesOfficer, "перевірити безперешкодний доступ до приміщень, потребу в розумному пристосуванні, ресурсному осередку та допоміжних засобах відповідно до ІПР.", 0, deadlineDate(data.accessibilityDeadline)),
+        ], data);
+      return {
+        ...order,
+        attachments: [{
+          kind: "approved",
+          title: "Склад команди психолого-педагогічного супроводу",
+          columns: ["№ з/п", "Роль", "Посада / ПІБ"],
+          rows: (data.supportTeam || []).map((row, index) => [String(index + 1), clean(row.role), clean(row.member)]),
+        }],
+      };
+    },
+  }),
+  template({
+    id: "student-medical-care",
+    category: "Освітній процес",
+    months: ["08", "09"],
+    title: "Про медичне обслуговування учнів та організацію роботи медичного працівника",
+    description: "Медичні огляди й щеплення, моніторинг здоров’я, невідкладні стани, інфекційний контроль, харчування, просвітницька робота та забезпечення медичного кабінету.",
+    tags: ["медичне обслуговування", "сестра медична", "здоров’я учнів", "щеплення", "медичний кабінет"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "cmu-student-medical-31", "law-infectious-diseases-1645", "law-public-health-2573", "moh-sanitary-2205"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("medicalOfficer", "Медичне обслуговування (посада або виконавець) *", { required: true, default: "сестрі медичній", maxlength: 220 }),
+      text("facilitiesOfficer", "Матеріальне забезпечення (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220 }),
+      date("recordsDeadline", "Строк перевірки відомостей про профілактичні огляди *", { required: true, default: "2026-09-05" }),
+      date("cabinetDeadline", "Строк перевірки медичного кабінету *", { required: true, default: "2026-09-01" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      return finish(this.title,
+        withBasis(`З метою організації безпечного та якісного медичного супроводу учнів у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        [
+          orderDirective(data.medicalOfficer, "здійснювати медичне обслуговування учнів у межах компетенції та відповідно до встановленого порядку.", 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+          orderDirective(data.medicalOfficer, "організовувати проведення обов’язкових медичних профілактичних оглядів, контролювати профілактичні щеплення, вести моніторинг стану здоров’я і фізичного розвитку учнів."),
+          orderDirective(data.medicalOfficer, "проводити передбачені профілактичні й оздоровчі заходи та брати участь у медико-педагогічному контролі за фізичним вихованням.", 1, deadlinePreset("За планом та у встановлені строки")),
+          orderDirective(data.medicalOfficer, "у разі виявлення в учня ознак інфекційної хвороби організувати тимчасову ізоляцію, невідкладно повідомити батьків (інших законних представників) і діяти відповідно до протиепідемічних вимог.", 0, deadlinePreset("У разі виявлення")),
+          orderDirective(data.medicalOfficer, "у разі невідкладного стану надати домедичну допомогу в межах компетенції, за потреби викликати екстрену медичну допомогу та повідомити батьків (інших законних представників).", 1, deadlinePreset("Негайно")),
+          orderDirective(data.medicalOfficer, "брати участь у бракеражі та контролі санітарно-гігієнічного стану під час організації харчування учнів.", 0, deadlinePreset("Відповідно до режиму харчування")),
+          orderDirective(data.medicalOfficer, "перевірити наявність актуальних відомостей про проходження учнями обов’язкових профілактичних медичних оглядів без збирання надлишкових медичних даних.", 0, deadlineDate(data.recordsDeadline)),
+          orderDirective(data.medicalOfficer, "проводити консультаційну й просвітницьку роботу щодо здорового способу життя, профілактики інфекційних та неінфекційних захворювань.", 0, deadlinePreset("Постійно")),
+          orderDirective(data.facilitiesOfficer, "забезпечити належні матеріально-технічні умови функціонування медичного кабінету, справність інженерних мереж і наявність необхідних засобів за обґрунтованими заявками медичного працівника.", 0, deadlineDate(data.cabinetDeadline)),
+        ], data);
+    },
+  }),
+  template({
+    id: "employee-medical-examinations",
+    category: "Кадрові",
+    months: ["08", "09"],
+    title: "Про організацію обов’язкових медичних оглядів працівників",
+    description: "Фактичний список або графік, різні правові режими оглядів, контроль строків, мінімізація медичних даних і недопуск до роботи лише у передбачених законом випадках.",
+    tags: ["медогляд працівників", "медична книжка", "профілактичний огляд", "професійний ризик", "допуск до роботи"],
+    recordSeries: "Кадрові питання",
+    needsVerification: true,
+    notice: "Не поширюйте наказ МОЗ № 1393 автоматично на всіх працівників. Перевірте категорію роботи, підставу огляду та погоджений список для кожної особи.",
+    legalBasisIds: ["labor-code-322", "law-labor-protection-2694", "law-infectious-diseases-1645", "law-public-health-2573", "cmu-preventive-medical-559", "moh-preventive-medical-280", "moh-employee-medical-1393", "law-personal-data-2297"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      textarea("scopeBasis", "Кого і на якій підставі включено до огляду *", { required: true, maxlength: 1200, placeholder: "Погоджений список працівників / категорії робіт / результати оцінювання професійних ризиків" }),
+      text("scheduleBasis", "Фактичний графік або направлення *", { required: true, maxlength: 600, placeholder: "Графік від … № … / направлення закладу охорони здоров’я" }),
+      text("medicalOfficer", "Облік проходження оглядів (посада) *", { required: true, default: "сестрі медичній", maxlength: 220 }),
+      text("hrResponsible", "Кадрові рішення і допуск до роботи (посада) *", { required: true, default: "відповідальному за кадрову роботу", maxlength: 220 }),
+      date("documentsDeadline", "Строк перевірки підтвердних документів *", { required: true, default: "2026-09-01" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      return finish(this.title,
+        withBasis(`На підставі ${clean(data.scopeBasis)}, відповідно до ${clean(data.scheduleBasis)} та з метою своєчасного проведення обов’язкових медичних оглядів працівників`, data.basis),
+        [
+          orderDirective("Працівникам, включеним до фактичного списку", `пройти попередній або періодичний медичний огляд відповідно до індивідуально визначеної правової підстави й ${clean(data.scheduleBasis)}.`, 0, deadlinePreset("Згідно з фактичним графіком або направленням")),
+          orderDirective("Працівникам, включеним до фактичного списку", "подати лише передбачений законодавством документ, що підтверджує проходження огляду та можливість виконання роботи, без розкриття надлишкових відомостей про стан здоров’я.", 1, deadlineDate(data.documentsDeadline)),
+          orderDirective(data.medicalOfficer, "перевірити наявність і чинність передбачених законодавством документів про проходження оглядів та вести облік строків наступного огляду.", 0, deadlineDate(data.documentsDeadline)),
+          orderDirective(data.medicalOfficer, "письмово інформувати керівника про працівників, які не пройшли обов’язковий огляд у встановлений для них строк, не зазначаючи діагнозів або інших надлишкових медичних даних.", 1, deadlinePreset("Негайно після спливу встановленого строку")),
+          orderDirective(data.hrResponsible, "оформлювати недопуск або відсторонення від роботи лише за наявності передбаченої законом підстави, із дотриманням установленої процедури та належним документуванням.", 0, deadlinePreset("За потреби")),
+          orderDirective("Особам, які обробляють документи про здоров’я", "забезпечити конфіденційність, обмежений доступ і зберігання лише необхідного складу персональних даних.", 0, deadlinePreset("Постійно")),
+        ], data);
+    },
+  }),
+  template({
+    id: "first-grade-distribution",
+    category: "Учні",
+    months: ["08", "09"],
+    title: "Про розподіл учнів перших класів",
+    description: "Розподіл уже зарахованих першокласників між класами, класні керівники, структурована таблиця учнів, перевірка назв класів і захист персональних даних.",
+    tags: ["розподіл першокласників", "1 клас", "1-А", "1-Б", "списки учнів", "мережа класів"],
+    recordSeries: "Рух здобувачів освіти",
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "law-personal-data-2297", "cmu-child-records-684", "mon-enrollment-367", "moh-sanitary-2205"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      date("effectiveDate", "Дата початку навчання *", { required: true, default: "2026-09-01" }),
+      repeatable("classes", "Перші класи *", [
+        text("className", "Клас *", { required: true, maxlength: 30, placeholder: "1-А" }),
+        person("teacher", "Класний керівник / учитель *", { required: true, maxlength: 220 }),
+      ], { required: true, minItems: 1, maxItems: 20 }),
+      repeatable("students", "Розподіл учнів *", [
+        person("student", "ПІБ учня *", { required: true, maxlength: 220 }),
+        text("className", "Клас *", { required: true, maxlength: 30, placeholder: "1-А" }),
+      ], { required: true, minItems: 1, maxItems: 200, help: "Список містить персональні дані й зберігається локально у вашому браузері." }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const classNames = (data.classes || []).map((row) => clean(row.className)).filter(Boolean).join(", ");
+      const order = finish(`Про розподіл учнів перших класів у ${clean(data.schoolYear)} навчальному році`,
+        withBasis(`З метою належної організації освітнього процесу, формування класів ${classNames} та забезпечення захисту персональних даних учнів`, data.basis),
+        [
+          orderDirective("", "Розподілити учнів перших класів згідно з таблицею у розпорядчій частині цього наказу."),
+          orderDirective("Учителям перших класів", `організувати освітній процес відповідно до освітньої програми та річного навчального плану.`, 0, deadlinePreset(`Із ${formatDateUa(data.effectiveDate)}`)),
+          orderDirective("Учителям перших класів", "оформити класні журнали й уточнити облікові відомості відповідно до фактичного розподілу учнів.", 1, deadlinePreset(`Із ${formatDateUa(data.effectiveDate)}`)),
+          orderDirective("Працівникам, які мають доступ до списків учнів", "використовувати персональні дані лише для визначеної мети, не оприлюднювати повні списки без законної підстави та забезпечити належний режим доступу.", 0, deadlinePreset("Постійно")),
+        ], data);
+      return {
+        ...order,
+        bodyTables: [{
+          title: "Розподіл учнів перших класів",
+          columns: ["№ з/п", "Учень / учениця", "Клас"],
+          rows: (data.students || []).map((row, index) => [String(index + 1), clean(row.student), clean(row.className)]),
+          afterDirective: 1,
+        }],
+        attachments: [{
+          kind: "approved",
+          title: "Перші класи та класні керівники",
+          columns: ["№ з/п", "Клас", "Класний керівник / учитель"],
+          rows: (data.classes || []).map((row, index) => [String(index + 1), clean(row.className), clean(row.teacher)]),
+        }],
+      };
+    },
+    validate(data) {
+      const declared = new Set((data.classes || []).map((row) => clean(row.className).toLocaleLowerCase("uk-UA")).filter(Boolean));
+      const unknown = [...new Set((data.students || []).map((row) => clean(row.className)).filter((name) => name && !declared.has(name.toLocaleLowerCase("uk-UA"))))];
+      return unknown.length ? [{ level: "error", title: "Учня прив’язано до неоголошеного класу", detail: `Перевірте класи: ${unknown.join(", ")}.` }] : [];
     },
   }),
   template({
@@ -259,52 +1348,171 @@ export const ORDER_TEMPLATES = [
     id: "school-meals",
     category: "Харчування",
     months: ["08", "09"],
-    title: "Про організацію харчування учнів",
-    description: "Старт організації харчування: дата, відповідальна особа, контроль режиму та безпечності.",
-    tags: ["харчування", "їдальня", "безпека"],
+    title: "Про організацію безоплатного харчування учнів",
+    description: "Модель організації й фінансування харчування, групи учнів, меню, структурований графік, дієтичні потреби, документація, відповідальні та бракеражна комісія.",
+    tags: ["харчування", "безкоштовне харчування", "безоплатне харчування", "їдальня", "кейтеринг", "аутсорсинг", "бракеражна комісія", "меню"],
+    preparedSummary: "Графік, комісія, документація та інші типові налаштування вже заповнені — перевірити",
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "cmu-school-meals-305", "moh-sanitary-2205"],
     fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
       date("startDate", "Початок організації харчування *", { required: true, default: "2026-09-01" }),
-      person("responsible", "Відповідальний за організацію харчування *", { required: true, maxlength: 220 }),
-      text("schedule", "Режим харчування", { default: "відповідно до затвердженого графіка харчування", maxlength: 300 }),
+      text("localBasis", "Рішення засновника / місцева підстава фінансування *", { required: true, maxlength: 700, placeholder: "Рішення / наказ від … № …" }),
+      text("studentGroups", "Групи учнів, які харчуються безоплатно *", { required: true, default: "учні 1–9 класів", maxlength: 400 }),
+      select("serviceModel", "Спосіб організації харчування *", [
+        { value: "кейтеринг", label: "Кейтеринг" },
+        { value: "аутсорсинг", label: "Аутсорсинг" },
+        { value: "харчування власними силами закладу", label: "Власний харчоблок" },
+      ], { required: true, default: "кейтеринг" }),
+      select("mealFormat", "Форма меню *", [
+        { value: "монопрофільне меню", label: "Монопрофільне меню" },
+        { value: "мультипрофільне меню", label: "Мультипрофільне меню" },
+      ], { required: true, default: "монопрофільне меню", collapsed: true }),
+      text("mealFrequency", "Кратність харчування *", { required: true, default: "одноразове гаряче харчування", maxlength: 160, collapsed: true }),
+      text("menuBasis", "Затверджене / погоджене меню *", { required: true, maxlength: 500, placeholder: "Чотиритижневе сезонне меню від …" }),
+      text("responsible", "Відповідальний за організацію харчування (посада) *", { required: true, default: "соціальному педагогу", maxlength: 220 }),
+      text("medicalOfficer", "Медичний контроль (посада) *", { required: true, default: "сестрі медичній", maxlength: 220, collapsed: true }),
+      repeatable("schedule", "Графік харчування *", [
+        text("group", "Група / класи *", { required: true, maxlength: 160 }),
+        text("time", "Час *", { required: true, maxlength: 60, placeholder: "10:05–10:35" }),
+        text("meal", "Приймання їжі", { maxlength: 100, placeholder: "Сніданок / обід" }),
+      ], {
+        required: true,
+        minItems: 1,
+        maxItems: 30,
+        collapsed: true,
+        defaultItems: [
+          { group: "1–4 класи", time: "10:05–10:35", meal: "гаряче харчування" },
+          { group: "5–9 класи", time: "11:15–11:35", meal: "гаряче харчування" },
+        ],
+      }),
+      repeatable("commission", "Бракеражна комісія *", [
+        select("role", "Роль *", [
+          { value: "Голова комісії", label: "Голова" },
+          { value: "Член комісії", label: "Член комісії" },
+        ], { required: true, default: "Член комісії" }),
+        text("member", "Посада / ПІБ *", { required: true, maxlength: 220 }),
+      ], {
+        required: true,
+        minItems: 3,
+        maxItems: 15,
+        collapsed: true,
+        defaultItems: [
+          { role: "Голова комісії", member: "директор" },
+          { role: "Член комісії", member: "відповідальний за організацію харчування" },
+          { role: "Член комісії", member: "сестра медична" },
+        ],
+      }),
+      repeatable("documents", "Документація, яку веде заклад *", [
+        text("name", "Документ *", { required: true, maxlength: 300 }),
+        text("keeper", "Хто веде *", { required: true, maxlength: 220 }),
+      ], {
+        required: true,
+        minItems: 1,
+        maxItems: 30,
+        collapsed: true,
+        defaultItems: [
+          { name: "Журнал щоденного обліку учнів, які харчуються", keeper: "відповідальний за організацію харчування" },
+          { name: "Затверджене чотиритижневе сезонне меню", keeper: "відповідальний за організацію харчування" },
+          { name: "Щоденне меню", keeper: "відповідальний за організацію харчування" },
+          { name: "Журнал контролю харчування / бракеражу", keeper: "бракеражна комісія" },
+          { name: "Чек-листи контролю організації харчування", keeper: "відповідальний за організацію харчування" },
+        ],
+      }),
+      select("dietaryMeals", "Організація харчування для особливих дієтичних потреб", [
+        { value: "yes", label: "Передбачити за наявності медичної довідки" },
+        { value: "no", label: "Наразі таких потреб немає" },
+      ], { required: true, default: "yes", collapsed: true }),
+      text("drinkingMode", "Питний режим *", { required: true, default: "індивідуальний питний режим з особистих ємностей із водою", maxlength: 300, collapsed: true }),
       ...baseAdvanced(),
     ],
     build(data) {
-      return finish(this.title,
-        withBasis("З метою забезпечення належної організації харчування учнів, дотримання санітарних вимог та безпечності харчових продуктів", data.basis),
+      const order = finish(`Про організацію безоплатного харчування учнів у ${clean(data.schoolYear)} навчальному році`,
+        withBasis(`На підставі ${clean(data.localBasis)} та з метою забезпечення збалансованого, якісного й безпечного харчування учнів`, data.basis),
         [
-          `Організувати харчування учнів з ${formatDateUa(data.startDate)} ${clean(data.schedule)}.`,
-          `Відповідальним за організацію харчування, координацію роботи та ведення передбаченої документації визначити: ${clean(data.responsible)}.`,
-          "Забезпечити дотримання затвердженого меню, режиму харчування, вимог до приймання, зберігання та використання харчових продуктів.",
-          "Працівникам, залученим до організації харчування, неухильно дотримуватися вимог особистої гігієни та правил безпечної роботи.",
+          orderDirective("", `Організувати з ${formatDateUa(data.startDate)} безоплатне ${clean(data.mealFrequency)} для таких груп: ${clean(data.studentGroups)}; спосіб організації — ${clean(data.serviceModel)}.`),
+          orderDirective("", `Визначити форму організації харчування: ${clean(data.mealFormat)}. Використовувати ${clean(data.menuBasis)}.`),
+          orderDirective("", "Затвердити графік харчування згідно з таблицею у розпорядчій частині цього наказу."),
+          orderDirective("", `Організувати ${clean(data.drinkingMode)}.`, 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+          ...(data.dietaryMeals === "yes" ? [orderDirective("Відповідальному за організацію харчування", "забезпечувати харчування учнів з особливими дієтичними потребами за наявності відповідного медичного підтвердження та з дотриманням установлених вимог.", 0, deadlinePreset("За потреби"))] : []),
+          orderDirective("", "Призначити відповідальним за координацію організації харчування, облік учнів і ведення документації: " + clean(data.responsible) + "."),
+          orderDirective("", "Створити бракеражну комісію у складі згідно з додатком 1."),
+          orderDirective(data.responsible, "координувати роботу залучених осіб і оператора ринку харчових продуктів, контролювати якість послуг, санітарний стан і фактичну кількість учнів, які харчуються.", 0, deadlinePreset("Постійно")),
+          orderDirective(data.responsible, "забезпечити ведення документації, визначеної у додатку 2, з урахуванням обраного способу організації харчування.", 1, deadlinePreset("Постійно")),
+          orderDirective(data.medicalOfficer, "контролювати передбачені законодавством медичні огляди залучених працівників, санітарно-гігієнічні вимоги та брати участь у роботі бракеражної комісії.", 0, deadlinePreset("Постійно")),
+          orderDirective("Класним керівникам", "супроводжувати учнів до місця харчування, сприяти культурі харчування й дотриманню особистої гігієни та подавати фактичні дані про присутність учнів.", 0, deadlinePreset("Щоденно")),
         ], data);
+      return {
+        ...order,
+        bodyTables: [{
+          title: "Графік харчування учнів",
+          columns: ["№ з/п", "Група / класи", "Час", "Приймання їжі"],
+          rows: (data.schedule || []).map((row, index) => [String(index + 1), clean(row.group), clean(row.time), clean(row.meal) || "—"]),
+          afterDirective: 3,
+        }],
+        attachments: [
+          {
+            kind: "approved",
+            title: "Склад бракеражної комісії",
+            columns: ["№ з/п", "Роль", "Посада / ПІБ"],
+            rows: (data.commission || []).map((row, index) => [String(index + 1), clean(row.role), clean(row.member)]),
+          },
+          {
+            kind: "approved",
+            title: "Перелік документації з організації харчування",
+            columns: ["№ з/п", "Документ", "Відповідальний за ведення"],
+            rows: (data.documents || []).map((row, index) => [String(index + 1), clean(row.name), clean(row.keeper)]),
+          },
+        ],
+      };
     },
   }),
   template({
     id: "class-teachers",
     category: "Кадрові",
     months: ["08", "09"],
-    title: "Про призначення класних керівників та завідувачів кабінетів",
-    description: "Один шаблон для класних керівників і, за потреби, закріплення навчальних кабінетів.",
-    tags: ["класні керівники", "кабінети", "педагоги"],
+    title: "Про призначення класних керівників та організацію їх роботи",
+    description: "Призначення класних керівників із доплатами, планування виховної роботи, журнали, інструктажі, відвідування, взаємодія з батьками та супровід учнів.",
+    tags: ["класні керівники", "доплата", "виховна робота", "класні журнали", "батьки"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "labor-code-322", "mon-class-teacher-434", "cmu-education-supplements-1391"],
     fields: [
       text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
       repeatable("classTeachers", "Класні керівники *", [
         text("className", "Клас *", { required: true, maxlength: 30 }),
         person("person", "Класний керівник *", { required: true, maxlength: 220 }),
+        text("supplement", "Доплата", { maxlength: 80, placeholder: "Розмір або посилання на тарифікацію" }),
       ], { required: true, minItems: 1, maxItems: 40 }),
-      repeatable("cabinets", "Завідувачі кабінетів", [
-        text("room", "Кабінет / приміщення *", { required: true, maxlength: 120 }),
-        person("person", "Відповідальна особа *", { required: true, maxlength: 220 }),
-      ], { minItems: 0, maxItems: 30, advanced: true }),
+      text("deputy", "Хто контролює виховну роботу (посада) *", { required: true, default: "заступника директора з виховної роботи", maxlength: 220 }),
+      date("workPlanDeadline", "Строк плану виховної роботи *", { required: true, default: "2026-09-05" }),
+      date("journalsDeadline", "Строк оформлення журналів *", { required: true, default: "2026-09-05" }),
+      date("briefingsDeadline", "Строк вступних інструктажів *", { required: true, default: "2026-09-04" }),
       ...baseAdvanced(),
     ],
     build(data) {
-      const classList = (data.classTeachers || []).map((x) => `${clean(x.className)} — ${clean(x.person)}`).filter(Boolean).join("; ");
-      const points = [`Призначити на ${clean(data.schoolYear)} навчальний рік класних керівників: ${classList}.`];
-      const cabinetList = (data.cabinets || []).map((x) => `${clean(x.room)} — ${clean(x.person)}`).filter(Boolean).join("; ");
-      if (cabinetList) points.push(`Закріпити навчальні кабінети та приміщення за відповідальними особами: ${cabinetList}.`);
-      points.push("Класним керівникам та завідувачам кабінетів забезпечити належну організацію роботи, збереження майна та дотримання вимог безпеки в межах визначених повноважень.");
-      return finish(this.title, withBasis(`З метою належної організації роботи закладу у ${clean(data.schoolYear)} навчальному році`, data.basis), points, data);
+      const points = [
+        orderDirective("", `Призначити на ${clean(data.schoolYear)} навчальний рік класних керівників та встановити доплати згідно з таблицею у розпорядчій частині цього наказу.`),
+        orderDirective("Класним керівникам", "створювати сприятливі умови для формування учнівських колективів, адаптації здобувачів освіти та належного соціально-педагогічного супроводу."),
+        orderDirective("Класним керівникам", "організовувати виховну роботу відповідно до річного плану закладу та з урахуванням безпекових умов.", 1, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+        orderDirective("Класним керівникам", "вести класні журнали, особові справи, облік відвідування та іншу документацію у межах посадових обов’язків.", 1, deadlinePreset("Постійно")),
+        orderDirective("Класним керівникам", "підготувати план виховної роботи на перший семестр і розмістити його у визначеному закладом сховищі документів.", 0, deadlineDate(data.workPlanDeadline)),
+        orderDirective("Класним керівникам", "оформити класні журнали, уточнити списки учнів і розподіл сторінок навчальних предметів відповідно до освітньої програми.", 1, deadlineDate(data.journalsDeadline)),
+        orderDirective("Класним керівникам", "провести вступні та первинні інструктажі з безпеки життєдіяльності та зафіксувати їх у відповідних журналах.", 1, deadlineDate(data.briefingsDeadline)),
+        orderDirective("Класним керівникам", "контролювати відвідування, безпечну поведінку учнів під час перерв, харчування, виходу із закладу та позакласних заходів.", 1, deadlinePreset("Постійно")),
+        orderDirective("Класним керівникам", "організовувати взаємодію з батьками (іншими законними представниками) з дотриманням законодавства про захист персональних даних.", 1, deadlinePreset("Упродовж навчального року")),
+      ];
+      const order = finish(this.title,
+        withBasis(`З метою чіткої організації виховної роботи, соціально-педагогічного супроводу здобувачів освіти та взаємодії з учнівськими колективами у ${clean(data.schoolYear)} навчальному році`, data.basis),
+        points, { ...data, controlPerson: clean(data.controlPerson) || clean(data.deputy) });
+      return {
+        ...order,
+        bodyTables: [{
+          title: "Класні керівники",
+          columns: ["№ з/п", "Класний керівник", "Клас", "Доплата"],
+          rows: (data.classTeachers || []).map((row, index) => [String(index + 1), clean(row.person), clean(row.className), clean(row.supplement) || "Відповідно до тарифікації"]),
+          afterDirective: 1,
+        }],
+      };
     },
   }),
   template({
@@ -754,6 +1962,325 @@ export const ORDER_TEMPLATES = [
     },
   }),
   template({
+    id: "autumn-winter-readiness",
+    category: "Адміністративно-господарські",
+    months: ["08", "09"],
+    title: "Про підготовку закладу до роботи в осінньо-зимовий період",
+    description: "Робоча група, перевірка інженерних систем, території та запасів, строки усунення недоліків і документування готовності.",
+    tags: ["осінньо-зимовий період", "опалення", "готовність", "інженерні мережі", "сніг"],
+    recordSeries: "Адміністративно-господарські питання",
+    needsVerification: true,
+    legalBasisIds: ["law-labor-protection-2694", "heat-preparation-620-378", "mon-safety-1669"],
+    fields: [
+      text("season", "Період готовності *", { required: true, default: "2026/2027", maxlength: 20 }),
+      text("responsible", "Відповідальний за господарство (посада) *", { required: true, default: "завідуючому господарством", maxlength: 220 }),
+      repeatable("workingGroup", "Робоча група з перевірки готовності *", [
+        text("role", "Роль *", { required: true, maxlength: 100 }),
+        text("member", "Посада / ПІБ *", { required: true, maxlength: 220 }),
+      ], { required: true, minItems: 2, maxItems: 20, defaultItems: [
+        { role: "Голова робочої групи", member: "директор" },
+        { role: "Член робочої групи", member: "завідуючий господарством" },
+      ] }),
+      repeatable("measures", "Заходи з підготовки *", [
+        textarea("action", "Захід *", { required: true, maxlength: 800 }),
+        text("deadline", "Строк *", { required: true, maxlength: 120 }),
+        text("executor", "Відповідальний *", { required: true, maxlength: 220 }),
+      ], { required: true, minItems: 1, maxItems: 40, defaultItems: [
+        { action: "Перевірити справність систем опалення, водопостачання, каналізації та електропостачання", deadline: "До 15.09.2026", executor: "завідуючий господарством" },
+        { action: "Перевірити стан покрівлі, вікон, дверей, території та захисної споруди", deadline: "До 15.09.2026", executor: "робоча група" },
+        { action: "Підготувати інвентар і матеріали для прибирання снігу та протиожеледної обробки", deadline: "До 20.09.2026", executor: "завідуючий господарством" },
+      ] }),
+      date("inspectionDeadline", "Строк оформлення акта готовності *", { required: true, default: "2026-09-15" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(`Про підготовку закладу до роботи в осінньо-зимовий період ${clean(data.season)} років`,
+        withBasis("З метою забезпечення безпечної та безперебійної роботи будівель, споруд та інженерних мереж закладу в осінньо-зимовий період", data.basis), [
+          orderDirective("", "Створити робочу групу з перевірки готовності закладу до осінньо-зимового періоду згідно з додатком 1."),
+          orderDirective(data.responsible, "організувати виконання заходів з підготовки та невідкладне усунення виявлених недоліків."),
+          orderDirective("Робочій групі", "провести підсумкову перевірку й оформити акт готовності із зазначенням виявлених недоліків та строків їх усунення.", 0, deadlineDate(data.inspectionDeadline)),
+          orderDirective(data.responsible, "забезпечувати щоденний огляд стану території та інженерних систем у період погіршення погодних умов.", 0, deadlinePreset("Щоденно, за потреби")),
+        ], data);
+      return { ...order,
+        bodyTables: [{ title: "Заходи з підготовки до осінньо-зимового періоду", columns: ["№ з/п", "Захід", "Строк", "Відповідальний"], rows: (data.measures || []).map((row, index) => [String(index + 1), clean(row.action), clean(row.deadline), clean(row.executor)]), afterDirective: 2 }],
+        attachments: [{ kind: "approved", title: "Склад робочої групи з перевірки готовності", columns: ["№ з/п", "Роль", "Посада / ПІБ"], rows: (data.workingGroup || []).map((row, index) => [String(index + 1), clean(row.role), clean(row.member)]) }],
+      };
+    },
+  }),
+  template({
+    id: "technical-inspection-commission",
+    category: "Адміністративно-господарські",
+    months: ["08", "09"],
+    title: "Про створення постійно діючої технічної комісії",
+    description: "Склад комісії та структурований перелік оглядів приміщень, обладнання, спортивних споруд і дозвільних актів.",
+    tags: ["технічна комісія", "огляд приміщень", "акти-дозволи", "обладнання"],
+    needsVerification: true,
+    legalBasisIds: ["law-labor-protection-2694", "mon-safety-1669", "mon-physical-safety-521"],
+    fields: [
+      repeatable("members", "Склад технічної комісії *", [
+        text("role", "Роль *", { required: true, maxlength: 100 }),
+        text("member", "Посада / ПІБ *", { required: true, maxlength: 220 }),
+      ], { required: true, minItems: 2, maxItems: 20, defaultItems: [
+        { role: "Голова комісії", member: "завідуючий господарством" },
+        { role: "Член комісії", member: "відповідальний за охорону праці" },
+        { role: "Член комісії", member: "представник профспілкової організації" },
+      ] }),
+      repeatable("inspections", "Об’єкти й результати перевірки *", [
+        text("object", "Об’єкт перевірки *", { required: true, maxlength: 300 }),
+        text("document", "Документ / результат *", { required: true, maxlength: 300 }),
+        text("frequency", "Строк або періодичність *", { required: true, maxlength: 120 }),
+      ], { required: true, minItems: 1, maxItems: 40, defaultItems: [
+        { object: "Навчальні кабінети, майстерні та лабораторії", document: "Акти-дозволи на проведення занять", frequency: "До початку навчального року" },
+        { object: "Спортивна зала, майданчики та спортивне обладнання", document: "Акти випробування й дозволи на використання", frequency: "До початку навчального року" },
+        { object: "Будівлі, споруди та інженерні мережі", document: "Акт технічного огляду", frequency: "Двічі на рік та за потреби" },
+      ] }),
+      date("readinessDeadline", "Строк первинного огляду *", { required: true, default: "2026-08-28" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(this.title, withBasis("З метою систематичного контролю технічного стану будівель, приміщень, споруд та обладнання закладу", data.basis), [
+        orderDirective("", "Створити постійно діючу технічну комісію згідно з додатком 1."),
+        orderDirective("Технічній комісії", "провести первинний огляд об’єктів, оформити визначені документи та подати директору узагальнений акт готовності.", 0, deadlineDate(data.readinessDeadline)),
+        orderDirective("Технічній комісії", "невідкладно повідомляти директора про дефекти, що створюють загрозу, та припиняти використання небезпечного об’єкта до усунення недоліків.", 0, deadlinePreset("Негайно")),
+        orderDirective("Технічній комісії", "здійснювати подальші огляди з періодичністю, визначеною у таблиці цього наказу."),
+      ], data);
+      return { ...order,
+        bodyTables: [{ title: "Об’єкти та результати технічних оглядів", columns: ["№ з/п", "Об’єкт", "Документ / результат", "Строк або періодичність"], rows: (data.inspections || []).map((row, index) => [String(index + 1), clean(row.object), clean(row.document), clean(row.frequency)]), afterDirective: 4 }],
+        attachments: [{ kind: "approved", title: "Склад постійно діючої технічної комісії", columns: ["№ з/п", "Роль", "Посада / ПІБ"], rows: (data.members || []).map((row, index) => [String(index + 1), clean(row.role), clean(row.member)]) }],
+      };
+    },
+  }),
+  template({
+    id: "harmful-habits-prevention",
+    category: "Учні",
+    months: ["08", "09"],
+    title: "Про організацію роботи з профілактики тютюнопаління та інших шкідливих звичок",
+    description: "Заборона вживання, профілактичний план, робота психологічної служби, інформування батьків і алгоритм реагування.",
+    tags: ["тютюнопаління", "вейпи", "алкоголь", "наркотичні засоби", "здоровий спосіб життя"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-child-protection-2402", "law-tobacco-2899", "president-safe-school-195-2020"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("coordinator", "Координатор профілактичної роботи (посада) *", { required: true, default: "соціальному педагогу", maxlength: 220 }),
+      text("psychologist", "Працівник психологічної служби *", { required: true, default: "практичному психологу", maxlength: 220 }),
+      repeatable("plan", "План профілактичних заходів *", [
+        textarea("event", "Захід *", { required: true, maxlength: 700 }),
+        text("deadline", "Строк *", { required: true, maxlength: 120 }),
+        text("responsible", "Відповідальний *", { required: true, maxlength: 220 }),
+      ], { required: true, minItems: 1, maxItems: 50, defaultItems: [
+        { event: "Оновити інформаційні матеріали про ризики тютюнових виробів, електронних сигарет, алкоголю та наркотичних засобів", deadline: "До 15.09.2026", responsible: "соціальний педагог" },
+        { event: "Провести тематичні заняття з формування навичок відповідальної відмови", deadline: "Упродовж навчального року", responsible: "класні керівники" },
+        { event: "Організувати індивідуальні консультації для учнів і батьків", deadline: "За потреби", responsible: "практичний психолог" },
+      ] }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(`Про організацію роботи з профілактики тютюнопаління та інших шкідливих звичок у ${clean(data.schoolYear)} навчальному році`, withBasis("З метою формування безпечної поведінки, збереження здоров’я учнів та запобігання вживанню тютюнових виробів, алкоголю, наркотичних засобів і психотропних речовин", data.basis), [
+        orderDirective("Учасникам освітнього процесу", "дотримуватися заборони куріння, вживання тютюнових і нікотиновмісних виробів, алкоголю, наркотичних засобів та психотропних речовин у приміщеннях і на території закладу.", 0, deadlinePreset("Постійно")),
+        orderDirective("", "Затвердити план профілактичних заходів згідно з таблицею у розпорядчій частині цього наказу."),
+        orderDirective(data.coordinator, "координувати виконання плану, взаємодію з класними керівниками та інформування батьків.", 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+        orderDirective(data.psychologist, "проводити діагностичну, консультативну та профілактичну роботу з дотриманням конфіденційності й інтересів дитини.", 0, deadlinePreset("За планом та за потреби")),
+        orderDirective("Працівникам закладу", "у разі виявлення ознак небезпечної поведінки діяти в межах повноважень, повідомити керівника та не розголошувати надлишкові персональні дані.", 0, deadlinePreset("Негайно")),
+      ], data);
+      return { ...order, bodyTables: [{ title: "План профілактичних заходів", columns: ["№ з/п", "Захід", "Строк", "Відповідальний"], rows: (data.plan || []).map((row, index) => [String(index + 1), clean(row.event), clean(row.deadline), clean(row.responsible)]), afterDirective: 2 }] };
+    },
+  }),
+  template({
+    id: "safety-class-operation",
+    category: "Безпека",
+    months: ["08", "09"],
+    title: "Про організацію роботи Класу безпеки",
+    description: "Відповідальний, інвентаризація зон, правила використання та річний план занять із мінної, пожежної, дорожньої й цивільної безпеки.",
+    tags: ["Клас безпеки", "мінна безпека", "домедична допомога", "цивільний захист"],
+    needsVerification: true,
+    legalBasisIds: ["code-civil-protection-5403", "law-education-2145", "mon-safety-class-135", "mon-safety-1669"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("responsible", "Відповідальний за Клас безпеки (посада) *", { required: true, default: "заступнику директора", maxlength: 220 }),
+      date("inventoryDeadline", "Строк інвентаризації й зонування *", { required: true, default: "2026-09-10" }),
+      repeatable("plan", "Річний план роботи *", [
+        text("topic", "Напрям / тема *", { required: true, maxlength: 350 }),
+        text("deadline", "Строк *", { required: true, maxlength: 120 }),
+        text("responsible", "Відповідальний *", { required: true, maxlength: 220 }),
+      ], { required: true, minItems: 1, maxItems: 60, defaultItems: [
+        { topic: "Мінна безпека", deadline: "Упродовж навчального року", responsible: "класні керівники" },
+        { topic: "Пожежна безпека", deadline: "Упродовж навчального року", responsible: "відповідальний за пожежну безпеку" },
+        { topic: "Цивільний захист і дії під час воєнних загроз", deadline: "Упродовж навчального року", responsible: "відповідальний за цивільний захист" },
+        { topic: "Домедична допомога", deadline: "За графіком", responsible: "медичний працівник" },
+        { topic: "Безпека дорожнього руху", deadline: "За графіком", responsible: "класні керівники" },
+        { topic: "Психологічне розвантаження", deadline: "За потреби", responsible: "практичний психолог" },
+      ] }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(`Про організацію роботи Класу безпеки у ${clean(data.schoolYear)} навчальному році`, withBasis("З метою системного навчання учасників освітнього процесу правилам безпечної поведінки та діям у надзвичайних ситуаціях", data.basis), [
+        orderDirective("", `Організувати роботу Класу безпеки у ${clean(data.schoolYear)} навчальному році.`),
+        orderDirective("", "Затвердити річний план роботи Класу безпеки згідно з таблицею у розпорядчій частині цього наказу."),
+        orderDirective(data.responsible, "провести інвентаризацію обладнання, перевірити зонування та безпечність навчального простору.", 0, deadlineDate(data.inventoryDeadline)),
+        orderDirective(data.responsible, "вести графік використання Класу безпеки та координувати залучення фахівців ДСНС, поліції, медичних та інших служб.", 0, deadlinePreset("Постійно")),
+        orderDirective("Класним керівникам", "проводити заняття відповідно до віку учнів і затвердженого плану, фіксувати проведення в установленій документації."),
+      ], data);
+      return { ...order, bodyTables: [{ title: "Річний план роботи Класу безпеки", columns: ["№ з/п", "Напрям / тема", "Строк", "Відповідальний"], rows: (data.plan || []).map((row, index) => [String(index + 1), clean(row.topic), clean(row.deadline), clean(row.responsible)]), afterDirective: 2 }] };
+    },
+  }),
+  template({
+    id: "safe-healthy-school-strategy",
+    category: "Контроль",
+    months: ["08", "09"],
+    title: "Про стан реалізації Національної стратегії розбудови безпечного і здорового освітнього середовища",
+    description: "Оцінювання фактичного стану за напрямами та план подальших заходів: доступність, інклюзія, харчування, медицина, безпека й психологічна підтримка.",
+    tags: ["Національна стратегія", "безпечне середовище", "здорове середовище", "безбар’єрність", "інклюзія"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "president-safe-school-195-2020", "mon-bullying-1646"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      select("overallAssessment", "Загальна оцінка виконання *", [{ value: "задовільним", label: "Задовільний стан" }, { value: "таким, що потребує поліпшення", label: "Потребує поліпшення" }], { required: true, default: "задовільним" }),
+      text("coordinator", "Координатор виконання плану (посада) *", { required: true, default: "заступнику директора", maxlength: 220 }),
+      repeatable("results", "Фактичний стан за напрямами *", [
+        text("area", "Напрям *", { required: true, maxlength: 250 }),
+        textarea("result", "Результат / доказ *", { required: true, maxlength: 700 }),
+      ], { required: true, minItems: 1, maxItems: 30, defaultItems: [
+        { area: "Фізична безпека й цивільний захист", result: "Функціонують захисна споруда та Клас безпеки; проводяться тренування" },
+        { area: "Психологічна безпека", result: "Організовано роботу психологічної служби та заходи із запобігання булінгу" },
+        { area: "Здоров’я і харчування", result: "Організовано медичний супровід та контроль безпечності харчування" },
+      ] }),
+      repeatable("plan", "План подальших заходів *", [
+        textarea("event", "Захід *", { required: true, maxlength: 700 }),
+        text("deadline", "Строк *", { required: true, maxlength: 120 }),
+        text("responsible", "Відповідальний *", { required: true, maxlength: 220 }),
+      ], { required: true, minItems: 1, maxItems: 50, defaultItems: [
+        { event: "Провести аудит фізичної доступності та визначити необхідні розумні пристосування", deadline: "До 30.09.2026", responsible: "робоча група з доступності" },
+        { event: "Актуалізувати індивідуальні програми розвитку та роботу команд супроводу", deadline: "До 10.09.2026", responsible: "голови команд супроводу" },
+        { event: "Перевірити маршрути евакуації з урахуванням потреб осіб з інвалідністю", deadline: "До 15.09.2026", responsible: "відповідальний за цивільний захист" },
+        { event: "Забезпечити психосоціальну підтримку учасників освітнього процесу", deadline: "Упродовж навчального року", responsible: "практичний психолог" },
+      ] }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const order = finish(`Про стан реалізації Національної стратегії розбудови безпечного і здорового освітнього середовища у ${clean(data.schoolYear)} навчальному році`, withBasis("За результатами аналізу умов навчання, виховання, охорони здоров’я, інклюзивності та психологічної безпеки у закладі", data.basis), [
+        orderDirective("", `Визнати стан реалізації Національної стратегії у закладі ${clean(data.overallAssessment)}.`),
+        orderDirective("", "Взяти до відома результати аналізу, наведені в таблиці у розпорядчій частині цього наказу."),
+        orderDirective("", "Затвердити план подальших заходів згідно з додатком 1."),
+        orderDirective(data.coordinator, "координувати виконання плану, збирати підтвердні матеріали та доповідати директору про ризики або прострочення.", 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+      ], data);
+      return { ...order,
+        bodyTables: [{ title: "Результати аналізу безпечного і здорового освітнього середовища", columns: ["№ з/п", "Напрям", "Фактичний результат / доказ"], rows: (data.results || []).map((row, index) => [String(index + 1), clean(row.area), clean(row.result)]), afterDirective: 2 }],
+        attachments: [{ kind: "approved", title: "План заходів з розбудови безпечного і здорового освітнього середовища", columns: ["№ з/п", "Захід", "Строк", "Відповідальний"], rows: (data.plan || []).map((row, index) => [String(index + 1), clean(row.event), clean(row.deadline), clean(row.responsible)]) }],
+      };
+    },
+  }),
+  template({
+    id: "first-lesson",
+    category: "Освітній процес",
+    months: ["08", "09"],
+    title: "Про проведення Першого уроку",
+    description: "Тема, дата, охоплені класи, методичний акцент, безпекова складова та публікація матеріалів без жорстко зашитої щорічної теми.",
+    tags: ["Перший урок", "1 вересня", "тема уроку", "класні керівники"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      date("lessonDate", "Дата Першого уроку *", { required: true, default: "2026-09-01" }),
+      text("theme", "Офіційна / обрана тема *", { required: true, maxlength: 350, placeholder: "Наприклад: Мова гідності" }),
+      text("classes", "Класи *", { required: true, default: "1–9 класи", maxlength: 100 }),
+      text("currentGuidance", "Щорічний лист, наказ або методичні рекомендації *", { required: true, maxlength: 700, placeholder: "Назва, дата і номер актуального документа" }),
+      text("classTeachers", "Виконавці *", { required: true, default: "класним керівникам", maxlength: 220 }),
+      text("deputy", "Методичний супровід (посада) *", { required: true, default: "заступнику директора з навчально-виховної роботи", maxlength: 220 }),
+      text("publication", "Де оприлюднити матеріали", { maxlength: 220, default: "на офіційному вебсайті закладу" }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      return finish(`Про проведення Першого уроку на тему «${clean(data.theme)}»`, withBasis(`На виконання ${clean(data.currentGuidance)} та з метою змістовного початку ${clean(data.schoolYear)} навчального року`, data.basis), [
+        orderDirective("", `Провести ${formatDateUa(data.lessonDate)} Перший урок на тему «${clean(data.theme)}» для учнів ${clean(data.classes)}.`),
+        orderDirective(data.classTeachers, "підготувати сценарії з урахуванням віку учнів, принципів гідності, поваги, інклюзивності, недискримінації та безпечного освітнього середовища.", 0, deadlinePreset(`До ${formatDateUa(data.lessonDate)}`)),
+        orderDirective(data.classTeachers, "передбачити алгоритм дій під час сигналу повітряної тривоги та не використовувати матеріали, що можуть завдати психологічної шкоди дітям.", 1, deadlinePreset("Під час підготовки та проведення")),
+        orderDirective(data.deputy, "надати методичну допомогу, перевірити готовність матеріалів та узагальнити інформацію про проведення уроку.", 0, deadlinePreset(`До ${formatDateUa(data.lessonDate)}`)),
+        ...(clean(data.publication) ? [orderDirective(data.deputy, `оприлюднити добірку матеріалів і підсумкову інформацію ${clean(data.publication)} без надлишкових персональних даних.`, 1, deadlinePreset("Після проведення"))] : []),
+      ], data);
+    },
+  }),
+  template({
+    id: "teacher-of-year-participation",
+    category: "Кадрові",
+    months: ["08", "09", "10"],
+    title: "Про організацію участі у всеукраїнському конкурсі «Учитель року»",
+    description: "Добровільна участь, щорічні номінації, реєстраційне вікно, етапи конкурсу та актуальний річний наказ МОН як змінна підстава.",
+    tags: ["Учитель року", "конкурс", "номінації", "реєстрація педагогів"],
+    recordSeries: "Кадрові питання",
+    needsVerification: true,
+    legalBasisIds: ["president-teacher-year-489-95", "cmu-teacher-year-638", "mon-teacher-year-schedule-145"],
+    fields: [
+      text("contestYear", "Рік конкурсу *", { required: true, default: "2027", maxlength: 4 }),
+      text("annualOrder", "Актуальний щорічний наказ МОН *", { required: true, maxlength: 700, placeholder: "Наказ МОН від … № … про проведення конкурсу у відповідному році" }),
+      repeatable("nominations", "Номінації поточного року *", [text("name", "Номінація *", { required: true, maxlength: 220 })], { required: true, minItems: 1, maxItems: 20, defaultItems: [
+        { name: "Біологія" }, { name: "Захист України" }, { name: "Інформатика" }, { name: "Українська мова та література" },
+      ] }),
+      date("registrationFrom", "Початок реєстрації *", { required: true, default: "2026-10-18" }),
+      date("registrationTo", "Завершення реєстрації *", { required: true, default: "2026-11-09" }),
+      text("firstTour", "Строк першого туру *", { required: true, default: "листопад 2026 року — лютий 2027 року", maxlength: 180 }),
+      text("secondTour", "Строк другого туру *", { required: true, default: "березень — травень 2027 року", maxlength: 180 }),
+      text("coordinator", "Координатор участі (посада) *", { required: true, default: "заступнику директора з навчально-виховної роботи", maxlength: 220 }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const nominationList = (data.nominations || []).map((row) => clean(row.name)).filter(Boolean).join(", ");
+      return finish(`Про організацію участі у всеукраїнському конкурсі «Учитель року — ${clean(data.contestYear)}»`, withBasis(`На виконання ${clean(data.annualOrder)} та з метою виявлення й підтримки талановитих педагогічних працівників`, data.basis), [
+        orderDirective("Педагогічним працівникам", `взяти участь у конкурсі на добровільних засадах у номінаціях: ${nominationList}.`),
+        orderDirective("Педагогічним працівникам, які бажають узяти участь", `самостійно зареєструватися на офіційній платформі конкурсу в період із ${formatDateUa(data.registrationFrom)} до ${formatDateUa(data.registrationTo)}.`),
+        orderDirective(data.coordinator, "ознайомити педагогічних працівників з умовами конкурсу, надати організаційну й методичну підтримку та не допускати примушування до участі.", 0, deadlinePreset("До завершення реєстрації")),
+        orderDirective(data.coordinator, `урахувати строки проведення першого туру: ${clean(data.firstTour)}; другого туру: ${clean(data.secondTour)}.`),
+      ], data);
+    },
+    validate(data) {
+      return clean(data.registrationFrom) && clean(data.registrationTo) && clean(data.registrationFrom) > clean(data.registrationTo)
+        ? [{ level: "error", title: "Некоректне реєстраційне вікно", detail: "Дата початку реєстрації пізніша за дату завершення." }]
+        : [];
+    },
+  }),
+  template({
+    id: "assessment-system-approval",
+    category: "Освітній процес",
+    months: ["08", "09"],
+    title: "Про затвердження системи та загальних критеріїв оцінювання результатів навчання учнів",
+    description: "Рішення педради, дата введення, принципи оцінювання, предметні критерії, публікація та компактна шкала замість копіювання всього нормативного акта.",
+    tags: ["оцінювання", "критерії", "12-бальна шкала", "педагогічна рада", "академічна доброчесність"],
+    needsVerification: true,
+    legalBasisIds: ["law-education-2145", "law-secondary-463", "law-academic-integrity-4742", "mon-assessment-system-722"],
+    fields: [
+      text("schoolYear", "Навчальний рік *", { required: true, default: CURRENT_SCHOOL_YEAR, maxlength: 20 }),
+      text("classes", "Класи *", { required: true, default: "1–9 класи", maxlength: 100 }),
+      date("councilDate", "Дата рішення педагогічної ради *", { required: true, default: "2026-08-28" }),
+      text("protocolNumber", "Номер протоколу педагогічної ради *", { required: true, maxlength: 40, default: "1" }),
+      date("effectiveDate", "Дата введення системи в дію *", { required: true, default: "2026-09-01" }),
+      date("criteriaDeadline", "Строк розроблення предметних критеріїв *", { required: true, default: "2026-09-05" }),
+      text("publicationDeadline", "Строк оприлюднення *", { required: true, default: "Не пізніше 10 робочих днів після затвердження", maxlength: 180 }),
+      text("deputy", "Координатор (посада) *", { required: true, default: "заступнику директора з навчально-виховної роботи", maxlength: 220 }),
+      repeatable("scales", "Шкала відповідності *", [
+        text("verbal", "Вербальна характеристика *", { required: true, maxlength: 220 }),
+        text("level", "Рівень *", { required: true, maxlength: 100 }),
+        text("points", "Бали *", { required: true, maxlength: 40 }),
+      ], { required: true, minItems: 1, maxItems: 20, defaultItems: [
+        { verbal: "Потребує значної підтримки", level: "Початковий", points: "1–3" },
+        { verbal: "Демонструє результат із ситуативною підтримкою", level: "Середній", points: "4–6" },
+        { verbal: "Демонструє помітний прогрес", level: "Достатній", points: "7–9" },
+        { verbal: "Демонструє значні успіхи", level: "Високий", points: "10–12" },
+      ] }),
+      ...baseAdvanced(),
+    ],
+    build(data) {
+      const councilBasis = `рішення педагогічної ради від ${formatDateUa(data.councilDate)}, протокол № ${clean(data.protocolNumber)}`;
+      const order = finish(this.title, withBasis(`На підставі ${councilBasis} та з метою встановлення прозорих, об’єктивних і недискримінаційних правил оцінювання`, data.basis), [
+        orderDirective("", `Затвердити систему та загальні критерії оцінювання результатів навчання учнів ${clean(data.classes)} згідно з додатком 1 та ввести їх у дію з ${formatDateUa(data.effectiveDate)}.`),
+        orderDirective("Педагогічним працівникам", "здійснювати оцінювання справедливо, об’єктивно, конфіденційно, без дискримінації та з дотриманням академічної доброчесності.", 0, deadlinePreset(`Із ${formatDateUa(data.effectiveDate)}`)),
+        orderDirective("Педагогічним працівникам", "розробити й довести до відома учнів предметні критерії оцінювання, узгоджені з освітньою програмою та загальною системою.", 0, deadlineDate(data.criteriaDeadline)),
+        orderDirective("Педагогічним працівникам", "передбачати необхідні адаптації способів оцінювання для учнів з особливими освітніми потребами та під час дистанційного навчання.", 1, deadlinePreset("За потреби")),
+        orderDirective(data.deputy, "координувати впровадження системи, надавати консультації педагогам та здійснювати моніторинг її послідовного застосування.", 0, deadlinePreset(`Упродовж ${clean(data.schoolYear)} навчального року`)),
+        orderDirective(data.deputy, "забезпечити оприлюднення затвердженої системи на офіційному вебсайті закладу.", 1, deadlinePreset(clean(data.publicationDeadline))),
+      ], data);
+      return { ...order, attachments: [{ kind: "approved", title: "Система та загальні критерії оцінювання результатів навчання учнів", columns: ["Вербальна характеристика результату", "Рівень", "Бали"], rows: (data.scales || []).map((row) => [clean(row.verbal), clean(row.level), clean(row.points)]) }] };
+    },
+  }),
+  template({
     id: "responsible-person",
     category: "Універсальні",
     months: [],
@@ -835,41 +2362,136 @@ export const ORDER_TEMPLATES = [
     category: "Універсальні",
     months: [],
     frequency: "За потреби",
-    title: "Про …",
+    title: "Вільний наказ",
     description: "Вільний шаблон, якщо потрібної теми немає в каталозі.",
     tags: ["вільний", "універсальний"],
     fields: [
       text("customTitle", "Заголовок наказу *", { required: true, maxlength: 320, placeholder: "Про ..." }),
-      textarea("preamble", "Преамбула / підстава *", { required: true, maxlength: 2000 }),
+      textarea("preamble", "Преамбула / підстава *", { required: true, maxlength: 12000, help: "Кожен абзац починайте з нового рядка." }),
       repeatable("points", "Пункти наказу *", [
+        select("level", "Рівень", [
+          { value: "0", label: "Основний пункт" },
+          { value: "1", label: "Підпункт" },
+          { value: "2", label: "Підпункт другого рівня" },
+        ], { default: "0", advanced: true }),
+        text("executor", "Виконавець за посадою", { maxlength: 220, placeholder: "Класним керівникам" }),
         textarea("text", "Текст пункту *", { required: true, maxlength: 2200 }),
-      ], { required: true, minItems: 1, maxItems: 20 }),
+        text("deadlineValue", "Строк виконання", { maxlength: 120, placeholder: "Постійно / 2026-08-20 / За потреби", help: "Тип строку визначиться автоматично. Поле можна залишити порожнім." }),
+      ], { required: true, minItems: 1, maxItems: 200, simple: true, help: "Для кожного доручення достатньо вказати виконавця, текст і строк. Нумерація формується автоматично." }),
+      repeatable("bodyTables", "Таблиці в розпорядчій частині", [
+        text("title", "Назва таблиці", { maxlength: 300 }),
+        textarea("columns", "Назви колонок через ; *", { required: true, maxlength: 1000 }),
+        textarea("rows", "Рядки таблиці *", { required: true, maxlength: 12000, help: "Кожен рядок — з нового рядка, комірки розділяйте крапкою з комою." }),
+        text("afterDirective", "Після пункту №", { maxlength: 4, placeholder: "0 — перед усіма пунктами" }),
+      ], { maxItems: 20, advanced: true }),
+      ...baseAdvanced(),
     ],
     build(data) {
-      return {
-        title: clean(data.customTitle),
-        preamble: normalizeSentence(data.preamble),
-        points: (Array.isArray(data.points) ? data.points : []).map((p) => normalizeSentence(stripManualPointNumber(p.text))).filter(Boolean),
-      };
+      const rows = (Array.isArray(data.points) ? data.points : []).map(directiveFromRow).filter(Boolean);
+      const order = finish(clean(data.customTitle), normalizePreamble(data.preamble), rows, data);
+      return { ...order, bodyTables: parseBodyTables(data.bodyTables) };
     },
   }),
 ];
 
+function orderDirective(executor, textValue, level = 0, deadline = null) {
+  return {
+    level,
+    executor: clean(executor).replace(/:+$/u, ""),
+    text: normalizeSentence(textValue),
+    deadline,
+    children: [],
+  };
+}
+
+function deadlineDate(value) {
+  const normalized = clean(value);
+  return normalized ? { kind: "date", value: normalized } : null;
+}
+
+function deadlinePreset(value) {
+  const normalized = clean(value);
+  return normalized ? { kind: "preset", value: normalized } : null;
+}
+
 function finish(title, preamble, points, data) {
   const out = [...points.filter(Boolean)];
   if (clean(data.extraPoint)) out.push(normalizeSentence(data.extraPoint));
-  out.push(controlPoint(data.controlPerson));
-  return { title, preamble: normalizeSentence(preamble), points: out };
+  const structured = (Array.isArray(data.extraDirectives) ? data.extraDirectives : []).map(directiveFromRow).filter(Boolean);
+  const directives = buildDirectiveTree([...out, ...structured, controlPoint(data.controlPerson)]);
+  const legalBasisIds = (Array.isArray(data.legalBasis) ? data.legalBasis : []).map((row) => clean(row?.id)).filter(Boolean);
+  const legalLead = formatLegalBasis(legalBasisIds);
+  const normalizedPreamble = normalizePreamble(preamble);
+  const finalPreamble = legalLead ? `${legalLead}.\n${normalizedPreamble}` : normalizedPreamble;
+  return {
+    title,
+    preamble: finalPreamble,
+    points: flattenDirectiveText(directives),
+    directives,
+    legalBasisIds,
+  };
 }
 
 function withBasis(sentence, basis) {
-  const base = endingDot(sentence);
+  const purpose = endingDot(sentence);
   const b = endingDot(basis);
-  return b ? `${base}, з урахуванням ${lowerFirst(b)}.` : `${base}.`;
+  return b ? `${b} та ${lowerFirst(purpose)}.` : `${purpose}.`;
+}
+
+function directiveFromRow(row) {
+  const textValue = normalizeSentence(stripManualPointNumber(row?.text));
+  const executor = clean(row?.executor).replace(/:+$/u, "");
+  if (!textValue && !executor) return null;
+  const deadlineValue = clean(row?.deadlineValue);
+  return {
+    level: Math.min(2, Math.max(0, Number.parseInt(row?.level, 10) || 0)),
+    executor,
+    text: textValue,
+    deadline: deadlineValue ? { kind: inferDeadlineKind(deadlineValue, row?.deadlineKind), value: deadlineValue } : null,
+    children: [],
+  };
+}
+
+function inferDeadlineKind(value, requestedKind) {
+  if (["date", "preset", "free"].includes(requestedKind)) return requestedKind;
+  return /^\d{4}-\d{2}-\d{2}$/u.test(clean(value)) ? "date" : "free";
+}
+
+function buildDirectiveTree(items) {
+  const roots = [];
+  const stack = [];
+  items.forEach((raw) => {
+    const item = typeof raw === "string" ? { executor: "", text: raw, deadline: null, children: [] } : { ...raw, children: [] };
+    let level = Math.min(2, Math.max(0, Number.parseInt(raw?.level, 10) || 0));
+    if (level > stack.length) level = stack.length;
+    while (stack.length > level) stack.pop();
+    if (level === 0 || !stack[level - 1]) roots.push(item);
+    else stack[level - 1].children.push(item);
+    stack[level] = item;
+    stack.length = level + 1;
+  });
+  return roots;
+}
+
+function flattenDirectiveText(items, out = []) {
+  items.forEach((item) => {
+    out.push(item.executor ? `${item.executor}: ${item.text}`.trim() : item.text);
+    flattenDirectiveText(item.children || [], out);
+  });
+  return out.filter(Boolean);
+}
+
+function parseBodyTables(tables) {
+  return (Array.isArray(tables) ? tables : []).map((table) => ({
+    title: clean(table?.title),
+    columns: String(table?.columns || "").split(";").map(clean).filter(Boolean),
+    rows: String(table?.rows || "").split(/\r?\n/u).map((row) => row.split(";").map(clean)).filter((row) => row.some(Boolean)),
+    afterDirective: Number.parseInt(table?.afterDirective, 10) || 0,
+  })).filter((table) => table.columns.length && table.rows.length);
 }
 
 function stripManualPointNumber(value) {
-  return clean(value).replace(/^\d{1,3}[.)]\s+/u, "");
+  return clean(value).replace(/^\d{1,3}(?:\.\d{1,3})*[.)]?\s+/u, "");
 }
 
 function workingDaysBetween(startValue, endValue) {
@@ -897,6 +2519,10 @@ export function normalizeSentence(value) {
   return /[.!?…]$/.test(v) ? v : `${v}.`;
 }
 
+export function normalizePreamble(value) {
+  return String(value ?? "").split(/\r?\n+/u).map(normalizeSentence).filter(Boolean).join("\n");
+}
+
 function endingDot(value) {
   return clean(value).replace(/[.!?…]+$/, "");
 }
@@ -910,6 +2536,11 @@ function controlPoint(personValue) {
 export function lowerFirst(value) {
   const v = clean(value);
   return v ? v.charAt(0).toLocaleLowerCase("uk-UA") + v.slice(1) : "";
+}
+
+export function upperFirst(value) {
+  const v = clean(value);
+  return v ? v.charAt(0).toLocaleUpperCase("uk-UA") + v.slice(1) : "";
 }
 
 export function formatDateUa(value) {

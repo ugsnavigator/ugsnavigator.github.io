@@ -33,6 +33,6 @@ function bundle(files, outFile, banner) {
   fs.writeFileSync(path.join(root, "js", outFile), output);
 }
 
-bundle(["templates.js", "core.js", "image.js", "storage.js", "registration.js", "docx.js", "app.js"], "app.bundle.js", "School Order Constructor browser bundle");
-bundle(["templates.js", "core.js", "image.js", "registration.js", "docx.js", "tests.js"], "tests.bundle.js", "School Order Constructor browser tests bundle");
+bundle(["legal-basis.js", "templates.js", "core.js", "order-package.js", "image.js", "storage.js", "registration.js", "docx.js", "app.js"], "app.bundle.js", "School Order Constructor browser bundle");
+bundle(["legal-basis.js", "templates.js", "core.js", "order-package.js", "image.js", "registration.js", "docx.js", "tests.js"], "tests.bundle.js", "School Order Constructor browser tests bundle");
 console.log("Browser bundles generated.");
