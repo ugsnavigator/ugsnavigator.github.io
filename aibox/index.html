@@ -8,7 +8,7 @@
 <meta content="Інтерактивний практикум для педагогів із ChatGPT і Gemini: промпти, навчальні матеріали, оцінювання, Canvas і персональні асистенти." name="description"/>
 <meta content="#1540c4" name="theme-color"/>
 <link href="assets/favicon.svg" rel="icon" type="image/svg+xml"/>
-<link href="style.css" rel="stylesheet"/>
+<link href="style.css?v=10" rel="stylesheet"/>
 </head>
 <body>
 <a class="skip-link" href="#main">Перейти до змісту</a>
@@ -100,7 +100,7 @@
 <div class="backup-actions">
 <button class="button secondary" id="exportProgress" type="button">Завантажити JSON</button>
 <button class="button secondary" id="importProgress" type="button">Завантажити прогрес</button>
-<input accept="application/json,.json" class="sr-only" id="importProgressFile" type="file"/>
+<input accept="application/json,.json" aria-label="Файл резервної копії прогресу" class="sr-only" id="importProgressFile" type="file"/>
 </div>
 </div>
 </section>
@@ -119,10 +119,10 @@
 </div>
 <details class="facilitator-guide">
 <summary>План для ведучого</summary>
-<div class="facilitator-grid"><article class="facilitator-note"><h3>До початку</h3><p>Перевірте доступ до ChatGPT і Gemini. У місії 7 учасники зберігають навчальний текст як TXT і прикріплюють файл до чату.</p></article>
-<article><h3>60 хв</h3><p><b>0–7:</b> вступ і профіль. <b>7–17:</b> безпека. <b>17–32:</b> будова промпту. <b>32–47:</b> власний промпт. <b>47–57:</b> доопрацювання. <b>57–60:</b> один висновок від групи.</p></article>
+<div class="facilitator-grid"><article class="facilitator-note"><h3>До початку</h3><p>Перевірте доступ до ChatGPT і Gemini. Місія 1 проходить без ШІ. У місії 7 учасники зберігають навчальний текст як TXT; цей файл використовують також у місіях 8–9.</p></article>
+<article><h3>60 хв</h3><p><b>0–7:</b> вступ і профіль. <b>7–17:</b> офлайн-рішення про безпеку. <b>17–32:</b> перший безпечний запит і будова промпту. <b>32–47:</b> власний промпт. <b>47–57:</b> доопрацювання. <b>57–60:</b> один висновок від групи.</p></article>
 <article><h3>90 хв</h3><p>Сценарій 60 хв + 15 хв порівняння двох сервісів + 10 хв роботи з джерелом + 5 хв підсумку.</p></article>
-<article><h3>180 хв</h3><p><b>0–45:</b> старт і промпти. <b>45–90:</b> місії 5–8. <b>90–100:</b> перерва. <b>100–165:</b> план уроку, диференціація, оцінювання та зображення. <b>165–180:</b> перегляд результатів і підсумок. Canvas та асистент залишаються для самостійного продовження.</p></article>
+<article><h3>180 хв</h3><p><b>0–45:</b> безпечний старт і промпти. <b>45–90:</b> доопрацювання, порівняння та робота з одним джерелом у місіях 5–8. <b>90–100:</b> перерва. <b>100–165:</b> цілісний пакет одного уроку: план, диференціація, оцінювання та зображення. <b>165–180:</b> перегляд результатів і підсумок. Canvas та асистент залишаються для самостійного продовження.</p></article>
 <article><h3>Запитання групі</h3><p>Що змінила друга ітерація? Який факт потребує зовнішньої перевірки? Де ШІ забрав роботу в учня? Яку частину результату може оцінити лише вчитель?</p></article>
 </div>
 </details>
@@ -182,7 +182,7 @@
 <a href="https://myroslavhesyk.github.io/ai-backpack-teacher/" rel="noopener noreferrer" target="_blank">AI-рюкзак вчителя</a>
 <a href="https://padlet.com/edustars/padlet-fjl82g1gj14lpwad" rel="noopener noreferrer" target="_blank">Методична скарбничка промптів</a>
 <a href="https://help.openai.com/en/articles/11780217-study-mode" rel="noopener noreferrer" target="_blank">ChatGPT Study Mode — офіційна довідка</a>
-<a href="https://help.openai.com/en/articles/9930697-what-is-the-canvas-feature-in-chatgpt-and-how-do-i-use-it" rel="noopener noreferrer" target="_blank">ChatGPT Canvas — офіційна довідка</a>
+<a href="https://openai.com/index/introducing-canvas/" rel="noopener noreferrer" target="_blank">ChatGPT Canvas — офіційний огляд</a>
 <a href="https://help.openai.com/en/articles/10169521-projects-in-chatgpt" rel="noopener noreferrer" target="_blank">Проєкти в ChatGPT — офіційна довідка</a>
 <a href="https://support.google.com/gemini/answer/16448384" rel="noopener noreferrer" target="_blank">Навчальні інструменти Gemini — офіційна довідка</a>
 <a href="https://support.google.com/gemini/answer/16972047" rel="noopener noreferrer" target="_blank">Навчальні зошити Gemini — офіційна довідка</a>
@@ -210,13 +210,13 @@
 <pre class="material-text" id="materialText" tabindex="0"></pre>
 <div class="dialog-actions"><button class="button secondary" id="closeMaterialBottom" type="button">Закрити</button></div>
 </dialog>
-<dialog class="certificate-dialog" id="certificateDialog">
+<dialog aria-labelledby="certificateTitle" class="certificate-dialog" id="certificateDialog">
 <button aria-label="Закрити" class="dialog-close" id="closeCertificate" type="button">×</button>
-<h2>Сертифікат проходження обраного маршруту</h2>
+<h2 id="certificateTitle">Сертифікат проходження обраного маршруту</h2>
 <canvas aria-label="Попередній перегляд сертифіката" height="1100" id="certificateCanvas" width="1600"></canvas>
 <div class="dialog-actions"><button class="button primary" id="downloadCertificate" type="button">Завантажити PNG</button></div>
 </dialog>
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
-<script src="script.js"></script>
+<script src="script.js?v=10"></script>
 </body>
 </html>
